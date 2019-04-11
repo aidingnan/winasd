@@ -187,8 +187,8 @@ device.on('ready', () => {
   diskman = require('./diskman')
   diskman.on('mounted', () => {
     ownership = require('./ownership')
-    ownership.on('cache', () => setTimeoutrefresh())
-    ownership.on('owner', () => console.log('owner owner') || refresh())
+    ownership.on('cache', () => refresh())
+    ownership.on('owner', () => refresh())
     // refresh() don't do this!
   })
   // refresh() don't do this!

@@ -1,7 +1,7 @@
 const child = require('child_process')
 const os = require('os')
 const strip = require('strip-ansi')
-const device = require('../components/device')
+// const device = require('../components/device')
 
 // TODO error code
 // TODO nmcli list before connect, return ENOENT
@@ -29,15 +29,15 @@ const connect = (ssid, password, callback) => {
       child.exec('systemctl restart systemd-timesyncd.service', () => {})
       // sync file system
       child.exec('sync', () => {})
-      callback(null, {
-        sn: device.sn,
-        // TODO who is going to maintain this?
-        addr: ((
-          wlan0 = os.networkInterfaces().wlan0,
-          ip = wlan0 && wlan0.find(x => x.family === 'IPv4'),
-          addr = ip ? ip.address : '0.0.0.0'
-        ) => addr)()
-      })
+
+      let data = { address: '0.0.0.0' }
+      const wlan0 = os.networkInterfaces().wlan0
+      const ip = wlan0 && wlan0.find(x => x.family === 'IPv4')
+      if (ip) {
+        const { address, netmask, mac, cidr } = ip
+        data = { address, netmask, mac, prefix: cidr.split('/')[1] }
+      }
+      callback(null, { data })
     }
   })
 }
