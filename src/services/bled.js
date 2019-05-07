@@ -36,7 +36,7 @@ class BLED extends require('events') {
   }
 
   initProperties() {
-    debug('initProperties')
+    //debug('initProperties')
     if (!this.ble) return setTimeout(() => this.initProperties(), 1000)
     this.ble.dbus.driver.invoke({
       destination: 'org.bluez',
