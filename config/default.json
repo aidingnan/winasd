@@ -1,7 +1,7 @@
 {
   "type": "winas",
   "iot": {
-    "endpoint": "a3dc7azfqxif0n.iot.cn-north-1.amazonaws.com.cn",
+    "endpoint": "a14xa979dh1dgw.ats.iot.cn-north-1.amazonaws.com.cn",
     "region": "cn-north-1"
   },
   "upgrade": {
