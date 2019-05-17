@@ -60,6 +60,6 @@
     "withoutEcc": false
   },
   "pipe": {
-    "baseURL": "https://abel.nodetribe.com"
+    "baseURL": "https://test.aidingnan.com"
   }
 }
