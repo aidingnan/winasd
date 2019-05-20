@@ -15,7 +15,7 @@ app.use(logger('dev', { skip: (req, res) => res.nolog === true || app.nolog === 
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
 app.use(resMiddware)
-app.get('/', (req, res) => res.status(200).send('#hello world'))
+app.get('/', (req, res) => res.status(200).send('Welcome to winasd'))
 app.use('/upgrade', require('./routes/upgrade')(appService))
 app.post('/bind', (req, res, next) => {
   if (!req.body.encrypted) return res.status(400).end()
