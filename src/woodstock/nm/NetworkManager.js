@@ -556,6 +556,50 @@ class NetworkManager extends DBusObject {
       }))
     })
   }
+  
+  activeConnectionDetail(objPath, callback) {
+    this.getAllDetail(objPath, 'org.freedesktop.NetworkManager.Connection.Active', callback)
+  }
+
+  ipv4ConfDetail(objPath, callback) {
+    this.getAllDetail(objPath, 'org.freedesktop.NetworkManager.IP4Config', callback)
+  }
+
+  getAllDetail(objpath, binterface, callback) {
+    this.GetAll(objpath, binterface,(err, data) => {
+      if (err) return callback(err)
+      let conf = {}
+      if (data.length) {
+        data[0].eval().map(x => {
+          if (Array.isArray(x) && x.length === 2 && Array.isArray(x[1]) &&  x[1].length === 2 && x[1][0].length === 1) {
+            conf[x[0]] = x[1][1]
+          }
+        })
+      }
+      callback(null, conf)
+    })
+  }
+
+  /* get current network connect info*/
+  currentNetinfo(callback){
+    /* TODO: maybe not newest devices, check if device has work/pending jobs*/
+    let wireless = this.device.devices.find(x => x.DeviceType === 2)
+    if (wireless) {
+      let activeConn = wireless.ActiveConnection
+      this.activeConnectionDetail(activeConn, (err, data) => {
+        if (err) return callback(err)
+        if (data.Ip4Config) {
+          this.ipv4ConfDetail(data.Ip4Config, (err, ip4) => {
+            if (err) return callback(err)
+            data.Ip4Config = ip4
+            return callback(null, data)
+          })
+        } else {
+          callback(null, data)
+        }
+      })
+    }
+  }
 }
 
 module.exports = NetworkManager
