@@ -17,10 +17,10 @@ class Bluetooth extends DBusObject {
   constructor(bound, sn) {
     super()
     let b = bound ? 0x02 : 0x01
-    let s = sn ? sn.slice(-4) : ''
+    let s = sn ? sn.slice(-8) : ''
     this.adv = new Advertisement('advertisement0', {
       Type: 'peripheral',
-      LocalName: 'Winas-' + s,
+      LocalName: 'winas-' + s,
       // ServiceUUIDs: ['LOCAL-AUTH', 'CLOUD'],
       // 1805 CTS
       // ServiceUUIDs: ['80000000-0182-406c-9221-0a6680bd0943'],
