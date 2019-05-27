@@ -205,7 +205,18 @@ class Starting extends BaseState {
         process.nextTick(() => this.ctx.channel && this.ctx.channel.connect())
       })
     })
-    this.ctx.bled.on('BLE_DEVICE_DISCONNECTED', () => this.ctx.localAuth && this.ctx.localAuth.stop()) // stop localAuth
+    this.ctx.bled.on('BLE_DEVICE_DISCONNECTED', () => {
+      if (this.ctx.localAuth) {
+        try {
+          this.ctx.localAuth.stop()
+          this.ctx.state.constructor.name === 'Bound' ?
+            this.ctx.ledService.run('#00ff00', 'alwaysOn') :
+            this.ctx.ledService.run('#0000ff', 'breath')
+        } catch(e) {
+          console.log('LED SERVICE FAILED')
+        }
+      }
+    }) // stop localAuth
     if (this.ctx.userStore.data) {
       this.setState('Bound')
     } else {
