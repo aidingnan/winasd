@@ -176,7 +176,7 @@ class ConnectTest extends State {
       this.device.removeAllListeners()
       this.device.on('error', () => {})
       setTimeout(() => {
-        this.device.end(true)
+        this.device.end()
         this.device = undefined
         callback(err)
       }, 1000) // fix aws error
@@ -201,7 +201,7 @@ class ConnectTest extends State {
       this.device.removeAllListeners()
       this.device.on('error', () => {})
       setTimeout(() => {
-        this.device.end(true)
+        this.device.end()
         this.device = undefined
         callback(err)
       }, 1000) // fix aws error

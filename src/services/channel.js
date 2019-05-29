@@ -68,7 +68,7 @@ class Connecting extends Base {
     timer = setTimeout(() => {
       device.removeAllListeners()
       device.on('error', () => {})
-      device.end(true)
+      device.end()
       device = undefined
       cb(new Error('ETIMEOUT'))
     }, 10000) // FIXME:
@@ -126,10 +126,10 @@ class Connecting extends Base {
     timer = setTimeout(() => {
       device.removeAllListeners()
       device.on('error', () => {})
-      device.end(true)
+      device.end()
       device = undefined
       cb(new Error('ETIMEOUT'))
-    }, 10000) // FIXME:
+    }, 30000) // FIXME:
 
     device = new Client({
       clientCertificates: [
