@@ -92,7 +92,7 @@ class Bluetooth extends DBusObject {
 
   updateAdv(bound, sn) {
     let b = bound ? 0x02 : 0x01
-    let s = sn ? sn.slice(-4) : ''
+    let s = sn ? sn.slice(-8) : ''
     this.adv.updateAdv({
       Type: 'peripheral',
       LocalName: 'Wisnuc-' + s,

@@ -78,6 +78,7 @@ module.exports.reqBind = (ecc, encrypted, token, callback) => {
 
 module.exports.verify = (signature, callback) => {
   // TODO:
+  // FIXME:
   // decode signature
   // check life cycle code
   // callback true / false

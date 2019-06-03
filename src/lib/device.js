@@ -31,7 +31,7 @@ const networkInterface = () => {
 }
 
 const deviceName = () => {
-  let name = '未定义'
+  let name = '口袋网盘'
   try {
     name = fs.readFileSync(deviceNameP).toString().trim()
   } catch(e) {}
@@ -44,7 +44,7 @@ const TMPFILE = () => {
 
 const setDeviceName = (name, callback) => {
   let tmpfile = TMPFILE()
-  name = name && name.length ? name : '未定义'
+  name = name && name.length ? name : '口袋网盘'
   fs.writeFile(tmpfile, name, err => {
     if (err) return callback(err)
     fs.rename(tmpfile, deviceNameP, err => 
