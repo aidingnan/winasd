@@ -565,6 +565,8 @@ class NetworkManager extends DBusObject {
     this.getAllDetail(objPath, 'org.freedesktop.NetworkManager.IP4Config', callback)
   }
 
+  
+
   getAllDetail(objpath, binterface, callback) {
     this.GetAll(objpath, binterface,(err, data) => {
       if (err) return callback(err)
@@ -589,17 +591,21 @@ class NetworkManager extends DBusObject {
         if (err) return callback(err)
         let activeConn = wireless.ActiveConnection
         if (!activeConn) return callback(null, dev)
-        this.activeConnectionDetail(activeConn, (err, data) => {
+        if (!dev.ActiveAccessPoint) return callback(null, dev)
+        this.accessPoint.GetAccessPointProperties(dev.ActiveAccessPoint, (err, ap) => {
           if (err) return callback(err)
-          if (data.Ip4Config) {
-            this.ipv4ConfDetail(data.Ip4Config, (err, ip4) => {
-              if (err) return callback(err)
-              data.Ip4Config = ip4
-              return callback(null, Object.assign({}, dev, data))
-            })
-          } else {
-            callback(null,  Object.assign({}, dev, data))
-          }
+          this.activeConnectionDetail(activeConn, (err, data) => {
+            if (err) return callback(err)
+            if (data.Ip4Config) {
+              this.ipv4ConfDetail(data.Ip4Config, (err, ip4) => {
+                if (err) return callback(err)
+                data.Ip4Config = ip4
+                return callback(null, Object.assign({}, ap, data))
+              })
+            } else {
+              callback(null,  Object.assign({}, data, ap))
+            }
+          })
         })
       })
     } else {
