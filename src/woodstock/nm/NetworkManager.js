@@ -585,19 +585,26 @@ class NetworkManager extends DBusObject {
     /* TODO: maybe not newest devices, check if device has work/pending jobs*/
     let wireless = this.device.devices.find(x => x.DeviceType === 2)
     if (wireless) {
-      let activeConn = wireless.ActiveConnection
-      this.activeConnectionDetail(activeConn, (err, data) => {
+      getAllDetail(wireless.objPath, 'org.freedesktop.NetworkManager.Device.Wireless', (err, dev) => {
         if (err) return callback(err)
-        if (data.Ip4Config) {
-          this.ipv4ConfDetail(data.Ip4Config, (err, ip4) => {
-            if (err) return callback(err)
-            data.Ip4Config = ip4
-            return callback(null, Object.assign({}, wireless, data))
-          })
-        } else {
-          callback(null,  Object.assign({}, wireless, data))
-        }
+        let activeConn = wireless.ActiveConnection
+        if (!activeConn) return callback(null, dev)
+        this.activeConnectionDetail(activeConn, (err, data) => {
+          if (err) return callback(err)
+          if (data.Ip4Config) {
+            this.ipv4ConfDetail(data.Ip4Config, (err, ip4) => {
+              if (err) return callback(err)
+              data.Ip4Config = ip4
+              return callback(null, Object.assign({}, dev, data))
+            })
+          } else {
+            callback(null,  Object.assign({}, dev, data))
+          }
+        })
       })
+    } else {
+      // FIXME: what means no wireless device?
+      callback(null, null)
     }
   }
 }
