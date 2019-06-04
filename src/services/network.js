@@ -32,6 +32,9 @@ class NetWorkManager extends require('events') {
     this.ctx.bled.nm.addressDatas((err, data) => {
       if (data) this.addresses = data
     })
+    this.ctx.bled.nm.currentNetinfo((err, data) => {
+      if (data) this.detail = data
+    })
   }
 
   connect(ssid, pwd, callback) {
@@ -55,12 +58,16 @@ class NetWorkManager extends require('events') {
     this.ctx.bled.nm.addressDatas((err, data) => {
       if (data) this.addresses = data
     })
+    this.ctx.bled.nm.currentNetinfo((err, data) => {
+      if (data) this.detail = data
+    })
   }
 
   view() {
     return {
       state: this.state,
-      addresses: this.addresses
+      addresses: this.addresses,
+      detail: this.detail
     }
   }
 }
