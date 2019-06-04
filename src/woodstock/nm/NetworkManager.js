@@ -585,7 +585,7 @@ class NetworkManager extends DBusObject {
     /* TODO: maybe not newest devices, check if device has work/pending jobs*/
     let wireless = this.device.devices.find(x => x.DeviceType === 2)
     if (wireless) {
-      getAllDetail(wireless.objPath, 'org.freedesktop.NetworkManager.Device.Wireless', (err, dev) => {
+      this.getAllDetail(wireless.objPath, 'org.freedesktop.NetworkManager.Device.Wireless', (err, dev) => {
         if (err) return callback(err)
         let activeConn = wireless.ActiveConnection
         if (!activeConn) return callback(null, dev)
