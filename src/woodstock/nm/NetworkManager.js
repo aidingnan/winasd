@@ -565,8 +565,6 @@ class NetworkManager extends DBusObject {
     this.getAllDetail(objPath, 'org.freedesktop.NetworkManager.IP4Config', callback)
   }
 
-  
-
   getAllDetail(objpath, binterface, callback) {
     this.GetAll(objpath, binterface,(err, data) => {
       if (err) return callback(err)

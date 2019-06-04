@@ -54,11 +54,12 @@ class BLED extends require('events') {
     })
   }
 
+  // update ble advertisement
   updateAdv() {
     this.ble && this.ble.updateAdv(this.ctx.userStore && this.ctx.userStore.data || false, this.ctx.deviceSN)
   }
 
-  // ble 对象设置前如果上一个存在 先移除所有listeners, 然后在新的设置对象上挂载监听
+  // remove all listeners from old ble, then add those to new
   set ble(x) {
     if (this._ble) {
       this._ble.removeAllListeners()
@@ -75,7 +76,6 @@ class BLED extends require('events') {
 
   get ble() { return this._ble }
 
-  // 同设置ble对象一样
   set nm(x) {
     if (this._nm) this._nm.removeAllListeners()
     this._nm = x
@@ -110,7 +110,6 @@ class BLED extends require('events') {
     if (type === 'NICChar2Write') return this.handleNICChar2Write(type, packet)
     debug('invalid action: ', packet.action)
   }
-
 
   handleLocalAuth(type, packet) {
     if (packet.action === 'req') {
@@ -160,7 +159,6 @@ class BLED extends require('events') {
       return this.update(type, {seq: packet.seq, data:{ devices:this.nm.devices }})
     }
   }
-
 
   addHandler(type, callback){
     if (this.handlers.has(type)) {

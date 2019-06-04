@@ -1,31 +1,34 @@
-const Promise = require('bluebird')
+const fs = require('fs')
+const path = require('path')
 const Config = require('config')
+
+const Promise = require('bluebird')
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
 const rimrafAsync = Promise.promisify(require('rimraf'))
-const path = require('path')
-const fs = require('fs')
 const child = Promise.promisifyAll(require('child_process'))
+
 const debug = require('debug')('ws:app')
 const debug2 = require('debug')('ws:appService')
 
-const DataStore = require('../lib/DataStore')
 const State = require('../lib/state')
+const DataStore = require('../lib/DataStore')
 
-const NetworkManager = require('./network')
-const Upgrade = require('./upgrade')
 const Bled = require('./bled')
-const LocalAuth = require('./localAuth')
-const Provision = require('./provision')
 const Winas = require('./winas')
+const LED = require('../lib/led') // any question of this moudle , ask liuhua
 const Channel = require('./channel')
-const { reqBind, reqUnbind, verify, refresh } = require('../lib/lifecycle')
+const Upgrade = require('./upgrade')
 const Device = require('../lib/device')
 const initEcc = require('../lib/atecc')
-const LED = require('../lib/led')
+const LocalAuth = require('./localAuth')
+const Provision = require('./provision')
+const NetworkManager = require('./network')
+const { reqBind, reqUnbind, verify, refresh } = require('../lib/lifecycle')
 
 const ProvisionFile = path.join(Config.storage.roots.p, Config.storage.files.provision)
 
 const NewError = (message, code) => Object.assign(new Error(message), { code })
+
 const EPERSISTENT = NewError('mount persistent partition failed', 'EPERSISTENT')
 const EUSERSTORE = NewError('user store load failed', 'EUSERSTORE')
 const EDEVICE = NewError('device info load failed', 'EDEVICE')
@@ -309,8 +312,8 @@ class Binding extends BaseState {
     this.ctx.bled.updateAdv()
   }
 
+  // FIXME: where is the data device (hardcode /dev/sda)
   async cleanVolumeAsync() {
-    // FIXME: where is the data device
     try {
       await child.execAsync('umount -f /dev/sda')
     } catch (e){
@@ -318,7 +321,6 @@ class Binding extends BaseState {
         throw e
       }
     }
-    // FIXME:
     await child.execAsync(`mkfs.btrfs -f /dev/sda`)
 
     await child.execAsync('partprobe')

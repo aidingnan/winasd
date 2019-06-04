@@ -11,9 +11,8 @@ const COLORS = [
 const CreateArgs = () => COLORS[Math.floor(Math.random() * 6)]
 
 /**
- * 物理验证
- * 通过灯光闪烁或者物理按键等方式对操作用户鉴权
- * 确认用户确实持有设备
+ * Hardware Auth
+ * Using Led color or touch-button to check is it owner operation
  */
 class LocalAuth {
   constructor(ctx) {
@@ -33,12 +32,14 @@ class LocalAuth {
     })
   }
 
+  // request hardware auth/ transfer to authing state
   request(callback) {
     if (this.state === 'Idle') {
       let args = CreateArgs()
       try {
         this.ctx.ledService.run(args[0], args[1], 60 * 1000) // start led
         this.args = args
+        console.log('LocalAuth ==> ', args)
         this.state = 'Working'
         this.timer = setTimeout(() => this.stop(), 60 * 1000)
         process.nextTick(() => callback(null, { colors: COLORS}))
@@ -51,6 +52,7 @@ class LocalAuth {
     }
   }
 
+  // stop local auth
   stop() {
     if (this.state === 'Idle') return
     clearTimeout(this.timer)
@@ -60,6 +62,7 @@ class LocalAuth {
     this.state = 'Idle'
   }
 
+  // check auth result
   auth(data, callback) {
     if (this.state !== 'Working')
       return callback(Object.assign(new Error('error state'), { code: 'ESTATE'}))
@@ -78,6 +81,7 @@ class LocalAuth {
     process.nextTick(() => callback(null, { token }))
   }
 
+  // verify token
   verify(token) {
     try{
       let decipher = crypto.createDecipher('aes128', this.secret)

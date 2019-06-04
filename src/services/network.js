@@ -1,4 +1,5 @@
 const debug = require('debug')('ws:net')
+
 /*
   NetworkManager State
   NM_STATE_UNKNOWN = 0 
@@ -10,6 +11,7 @@ const debug = require('debug')('ws:net')
   NM_STATE_CONNECTED_SITE = 60 
   NM_STATE_CONNECTED_GLOBAL = 70
   */
+
 class NetWorkManager extends require('events') {
   constructor(ctx) {
     super()
