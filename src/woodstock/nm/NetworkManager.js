@@ -592,10 +592,10 @@ class NetworkManager extends DBusObject {
           this.ipv4ConfDetail(data.Ip4Config, (err, ip4) => {
             if (err) return callback(err)
             data.Ip4Config = ip4
-            return callback(null, data)
+            return callback(null, Object.assign({}, wireless, data))
           })
         } else {
-          callback(null, data)
+          callback(null,  Object.assign({}, wireless, data))
         }
       })
     }
