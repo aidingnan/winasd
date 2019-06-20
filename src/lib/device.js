@@ -9,6 +9,9 @@ const UUID = require('uuid')
 
 const deviceNameP = path.join(Config.storage.dirs.device, Config.storage.files.deviceName)
 
+// default device name
+const DEVICE_NAME = 'PocketDrive'
+
 const networkInterface = () => {
   let interfaces = os.networkInterfaces()
     
@@ -31,7 +34,7 @@ const networkInterface = () => {
 }
 
 const deviceName = () => {
-  let name = '口袋网盘'
+  let name = DEVICE_NAME
   try {
     name = fs.readFileSync(deviceNameP).toString().trim()
   } catch(e) {}
@@ -44,7 +47,8 @@ const TMPFILE = () => {
 
 const setDeviceName = (name, callback) => {
   let tmpfile = TMPFILE()
-  name = name && name.length ? name : '口袋网盘'
+  if (!name || !name.length)
+    return process.nextTick(() => callback(null, null))
   fs.writeFile(tmpfile, name, err => {
     if (err) return callback(err)
     fs.rename(tmpfile, deviceNameP, err => 
@@ -63,8 +67,20 @@ const hardwareInfo = () => {
     notBefore: 1543561560133,
     notAfter: 1859180920786,
     bleAddr: 'XXXX:XXXX:XXXX:XXX',
-    name: deviceName()
+    name: deviceName(),
+    model: deviceModel()
   }
+}
+
+const deviceModel = () => {
+  const mpath = '/proc/device-tree/model'
+  let model
+  try {
+    model = fs.readFileSync(mpath).toString().trim()
+  } catch(e){
+    console.log('*****\ndeviceModel not found\n*****\n')
+  }
+  return model
 }
 
 const deviceSN = () => {
@@ -82,5 +98,7 @@ module.exports = {
   TMPFILE,
   setDeviceName,
   deviceName,
-  hardwareInfo
+  deviceModel,
+  hardwareInfo,
+  DEVICE_NAME
 }

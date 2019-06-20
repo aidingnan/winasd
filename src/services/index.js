@@ -337,8 +337,13 @@ class Unbinding extends BaseState {
   async doUnbind() {
     // delete user info
     await new Promise((resolve, reject) => this.ctx.userStore.save(null, err => err ? reject(err) : resolve()))
+    // set default device name, ignore error
+    await new Promise((res, rej) => Device.setDeviceName(Device.DEVICE_NAME, _ => res()))
     // refresh lifecycle
     await new Promise((res, rej) => refresh(err => err ? rej(err) : res()))
+
+    // update cloud device info
+    this.ctx.deviceUpdate()
     // update ble advertisement
     this.ctx.bled.updateAdv()
   }
