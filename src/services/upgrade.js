@@ -49,7 +49,9 @@ class Upgrade extends event {
   onFetchData() {
     let data = this.fetcher.last.data
     if (this.fetcher.last.error || !data) return // fetch error
-    let docs = data.filter(d => d.Key.endsWith('.json')).sort((a, b) => a.LastModified < b.LastModified)
+    let docs = []
+    if (Array.isArray(data))
+      docs = data.filter(d => d.Key.endsWith('.json')).sort((a, b) => a.LastModified < b.LastModified)
     if (docs.length) {
       let latest = docs[0]
       let nameArr = latest.Key.slice(0, -5).split('-').map(x => x.trim())
