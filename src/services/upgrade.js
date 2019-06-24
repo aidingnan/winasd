@@ -25,10 +25,9 @@ class Upgrade extends event {
     this.currentVersion = '0.0.0'
     try {
       this.currentVersion = fs.readFileSync(upgradeConf.version).toString().trim()
-    } catch (e) { 
+    } catch (e) {
       console.log(e)
     }
-    
   }
 
   get downloader() {
@@ -72,7 +71,7 @@ class Upgrade extends event {
         debug('Invalid doc name: ', latest.Key)
       }
     }
-    else 
+    else
       debug('Invalid Fetch Data')
   }
 
