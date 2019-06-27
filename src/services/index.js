@@ -303,7 +303,7 @@ class Binding extends BaseState {
   }
 
   async start(user) {
-    await this.cleanVolumeAsync()
+    // await this.cleanVolumeAsync()
     // save user
     await new Promise((resolve, reject) => this.ctx.userStore.save(user, err => err ? reject(err) : resolve()))
     // refresh lifecycle
