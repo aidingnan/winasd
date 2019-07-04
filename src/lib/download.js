@@ -51,7 +51,6 @@ class Metadata extends State {
           let err = new Error('get upgrade metadata error')
           this.setState('Failed', err)
         } else {
-          let u = url.slice(0, -5) + '.zip'
           this.setState('Checking', res.body)
         }
       }, error => {
@@ -94,7 +93,7 @@ class Working extends State {
   enter(data) {
     let tmpPath = path.join(this.ctx.tmpDir, UUID.v4())
     let fHash = data.hash
-    let url = upgradeConf.address + '/' + this.ctx.bucketKey.slice(0, -4) + 'zip'
+    let url = upgradeConf.address + '/' + this.ctx.bucketKey.slice(0, -4) + 'tar.gz'
     debug('download url:', url)
     this.rs = request.get(url)
     this.rs.on('error', err => {

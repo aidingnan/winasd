@@ -7,8 +7,8 @@
   "upgrade": {
     "address": "https://dingnan-upgrade.s3.cn-north-1.amazonaws.com.cn",
     "fetch": {
-      "beta": "https://dingnan-upgrade.s3.cn-north-1.amazonaws.com.cn?list-type=2&prefix=beta/abel/&delimiter=/&max-keys=10000",
-      "release": "https://dingnan-upgrade.s3.cn-north-1.amazonaws.com.cn?list-type=2&prefix=release/abel/&delimiter=/&max-keys=10000"
+      "beta": "https://dingnan-upgrade.s3.cn-north-1.amazonaws.com.cn?list-type=2&prefix=beta/backus/&delimiter=/&max-keys=10000",
+      "release": "https://dingnan-upgrade.s3.cn-north-1.amazonaws.com.cn?list-type=2&prefix=release/backus/&delimiter=/&max-keys=10000"
     },
     "version": "/etc/version"
   },
