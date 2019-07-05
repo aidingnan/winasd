@@ -66,7 +66,7 @@ class Starting extends State {
   enter () {
     super.enter()
 
-    if (!process.argv.includes('--useWinas')) {
+    if (process.argv.includes('--withoutWinas')) {
       return
     }
     const opts = {
@@ -75,11 +75,11 @@ class Starting extends State {
       /**
       node must be in path, for there is no global node in future
       */
-      env: Object.assign({}, process.env, { 
+      env: Object.assign({}, process.env, {
         PATH: `/wisnuc/node/base/bin:${process.env.PATH}`,
         NODE_ENV: process.env.WINAS_ENV ? process.env.WINAS_ENV : 'winas',
         NODE_CONFIG_ENV: process.env.WINAS_ENV ? process.env.WINAS_ENV : 'winas',
-        NODE_CONFIG_DIR: '/winas/build/config/'
+        NODE_CONFIG_DIR: path.join(this.ctx.winasDir, 'build', 'config')
       }),
       stdio: ['ignore', 'inherit', 'inherit', 'ipc'] 
     }

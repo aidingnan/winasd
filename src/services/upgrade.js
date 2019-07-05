@@ -1,12 +1,40 @@
 const fs = require('fs')
-const Fetch = require('../lib/fetch')
-const Download = require('../lib/download')
 const event = require('events')
 const Config = require('config')
 const debug = require('debug')('ws:upgrade')
 
+const State = require('../lib/state')
+const Fetch = require('../lib/fetch')
+const Download = require('../lib/download')
+
 const upgradeConf = Config.get('upgrade')
 const isHighVersion = (current, next) => current < next
+
+class Base extends State {
+  debug(...args) {
+    debug(...args)
+  }
+
+  checkout() {
+
+  }
+
+  confirm() {
+
+  }
+}
+
+class Upgradeing extends Base {
+
+}
+
+class Upgradeed extends Base {
+
+}
+
+class Failed extends Base {
+
+}
 
 /**
  * fetch + download
@@ -59,7 +87,7 @@ class Upgrade extends event {
         if (isHighVersion(this.currentVersion, version)) {
           // check if downloading
           if (this.downloader && !isHighVersion(this.downloader.version, version)) {
-            debug('already downloading')
+            debug('already ' + this.downloader.status())
           } else {
             this.downloader = new Download(latest.Key, this.tmpDir, this.dir, version)
           }
@@ -73,6 +101,17 @@ class Upgrade extends event {
     }
     else
       debug('Invalid Fetch Data')
+  }
+
+  upgrade(version, callback) {
+    // check downloader status === Finished
+    // btrfs subvolume create uuid
+    // tar xzf
+    // btrfs subvolume snap -r uuid ruuid
+    // rm -r  uuid
+    // cowroot_checkout ruuid
+    // ???
+    // cowroot_confirm
   }
 
   list (callback) {

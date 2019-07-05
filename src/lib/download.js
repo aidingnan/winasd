@@ -71,7 +71,7 @@ class Checking extends State {
     mkdirp.sync(this.ctx.tmpDir)
     mkdirp.sync(this.ctx.dstDir)
 
-    let dstName = [data.name, data.hash, data.version, data.time].join('-') + '.tar.gz'
+    let dstName = data.version + '.tar.gz'
     let srcP = path.join(this.ctx.dstDir, dstName)
     this.ctx.dstPath = srcP
     this.ctx.fileDoc = data
@@ -125,9 +125,14 @@ class Working extends State {
         e.code = 'ESIZEMISMATCH'
         this.setState('Failed', e)
       } else {
-        fs.rename(tmpPath, this.ctx.dstPath, err => {
-          if (err) return this.setState('Failed', err)
-          this.setState('Finished', tmpPath, this.ws.bytesWritten)
+        rimraf(this.ctx.dstDir, () => {
+          mkdirp(this.ctx.dstDir, err => {
+            if (err) return this.setState('Failed', err)
+            fs.rename(tmpPath, this.ctx.dstPath, err => {
+              if (err) return this.setState('Failed', err)
+              this.setState('Finished', tmpPath, this.ws.bytesWritten)
+            })
+          })
         })
       }
     })

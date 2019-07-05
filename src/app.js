@@ -7,8 +7,6 @@ const resMiddware = require('./middleware/res')
 const app = express()
 const appService = new AppService()
 
-if (process.env.DEBUG) global.useDebug = true
-
 app.set('json spaces', 0)
 app.use(logger('dev', { skip: (req, res) => res.nolog === true || app.nolog === true }))
 // install body parser
@@ -55,3 +53,9 @@ app.listen(3001, err => {
   if (err) return console.log('winasd listen error: ', err.message)
   console.log('winasd started on port 3001')
 })
+
+/**
+ * argv:
+ *  --withoutWinas: start winasd  without winas
+ *  --withoutEcc: start winasd without ecc, use openssl
+ */

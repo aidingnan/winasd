@@ -24,7 +24,7 @@ const pubKName = 'device.pub'
 const snName = 'deviceSN'
 const caName = storageConf.files.caCert
 
-// For test environment
+// For not ecc device , test environment
 const deviceSN = () => process.env.NODE_ENV.startsWith('test') ? 'test_' + UUID.v4().slice(5) : UUID.v4()
 
 class Failed extends State {
@@ -43,7 +43,7 @@ class Failed extends State {
 
 class Finished extends State {
   enter() {
-    global.useDebug ? '' : console.log('PROVISION FINISHED')
+    console.log('PROVISION FINISHED')
   }
 }
 
@@ -59,34 +59,30 @@ class PreBuild extends State {
 
   // create csr/pkey use software openssl
   createCsrWithOpenSSL(callback) {
-    if (this.ctx.withoutEcc) {
-      fs.lstat(path.join(certFolder, crtName), err => {
-        if (err) {
-          rimraf(certFolder, err => {
+    fs.lstat(path.join(certFolder, crtName), err => {
+      if (err) {
+        rimraf(certFolder, err => {
+          if (err) return callback(err)
+          mkdirp(certFolder, err => {
             if (err) return callback(err)
-            mkdirp(certFolder, err => {
-              if (err) return callback(err)
-              try {
-                child.execSync(`openssl genrsa 2048 > ${ path.join(certFolder, pkeyName)}`)
-                child.execSync(`openssl rsa -in ${ path.join(certFolder, pkeyName)} -pubout > ${ path.join(certFolder, pubKName)}`)
-                child.execSync(`openssl req -new -subj "/C=CN/CN=abc/O=wisnuc" -key ${ path.join(certFolder, pkeyName)} > ${ path.join(certFolder, csrName)}`)
-                this.ctx.sn = deviceSN()
-                fs.writeFileSync(path.join(certFolder, snName), this.ctx.sn)
-                fs.writeFileSync(path.join(certFolder, caName), awsCA)
-              }
-              catch(e) {
-                callback(e)
-              }
-              callback(null)
-            })
+            try {
+              child.execSync(`openssl genrsa 2048 > ${ path.join(certFolder, pkeyName)}`)
+              child.execSync(`openssl rsa -in ${ path.join(certFolder, pkeyName)} -pubout > ${ path.join(certFolder, pubKName)}`)
+              child.execSync(`openssl req -new -subj "/C=CN/CN=abc/O=wisnuc" -key ${ path.join(certFolder, pkeyName)} > ${ path.join(certFolder, csrName)}`)
+              this.ctx.sn = deviceSN()
+              fs.writeFileSync(path.join(certFolder, snName), this.ctx.sn)
+              fs.writeFileSync(path.join(certFolder, caName), awsCA)
+            }
+            catch(e) {
+              callback(e)
+            }
+            callback(null)
           })
-        } else {
-          callback(null)
-        }
-      })
-    } else {
-      // TODO: create real CSR use atecc
-    }
+        })
+      } else {
+        callback(null)
+      }
+    })
   }
 
   // create csr use hardware atecc508/608
@@ -124,7 +120,7 @@ class Provisioning extends State {
       .post(provisionConf.address + '/sign')
       .send({
         csr: fs.readFileSync(csrPath).toString(),
-        type: process.env.NODE_ENV.startsWith('test') ? 'test' : 'test',
+        type: process.env.NODE_ENV.startsWith('test') ? 'test' : 'production',
         sn: this.ctx.sn
       })
     this.req

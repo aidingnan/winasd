@@ -303,27 +303,12 @@ class Binding extends BaseState {
   }
 
   async start(user) {
-    // await this.cleanVolumeAsync()
     // save user
     await new Promise((resolve, reject) => this.ctx.userStore.save(user, err => err ? reject(err) : resolve()))
     // refresh lifecycle
     await new Promise((res, rej) => refresh(err => err ? rej(err) : res()))
     // update ble advertisement
     this.ctx.bled.updateAdv()
-  }
-
-  // FIXME: where is the data device (hardcode /dev/sda)
-  async cleanVolumeAsync() {
-    try {
-      await child.execAsync('umount -f /dev/sda')
-    } catch (e){
-      if (!e.message || !e.message.includes('not mounted')){ 
-        throw e
-      }
-    }
-    await child.execAsync(`mkfs.btrfs -f /dev/sda`)
-
-    await child.execAsync('partprobe')
   }
 }
 

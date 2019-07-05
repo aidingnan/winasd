@@ -7,7 +7,7 @@
   },
   "system": {
     "globalNode": true,
-    "withoutEcc": false
+    "withoutEcc": true
   },
   "storage": {
     "dirs": {
