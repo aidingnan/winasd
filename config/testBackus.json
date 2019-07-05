@@ -15,7 +15,7 @@
       "tmpDir": "/run/cowroot/root/data/test/tmp",
       "isoDir": "/run/cowroot/root/data/test/iso",
       "bleDir": "/run/cowroot/root/data/test/ble",
-      "winasDir": "/winas",
+      "winasDir": "/root/winas",
       "bound": "/run/cowroot/root/data/test/bound",
       "device": "/run/cowroot/root/data/test/device"
     }
