@@ -1,3 +1,4 @@
+/* * @Author: Harry  * @Date: 2019-07-08 11:14:28  * @Last Modified by:   Harry  * @Last Modified time: 2019-07-08 11:14:28  */
 const i2c = require('i2c-bus')
 
 class State {
@@ -38,10 +39,10 @@ class Init extends State {
   }
 }
 
-class StandBy extends State{
+class StandBy extends State {
   enter() {
     let [r, g, b] = convertColor(this.ctx.defaultColor || '#00ff00')
-    
+
 
     this.ctx.setLedMode(0x06)
     this.ctx.setLed1(r, g, b)
@@ -80,14 +81,14 @@ class Working extends State {
     clearTimeout(this.closeTimer)
   }
 
-  createNextTimer () {
+  createNextTimer() {
     this.nextTimer = setTimeout(() => {
-      this.ctx.setPWMS(this.light? null: 0x55)
+      this.ctx.setPWMS(this.light ? null : 0x55)
       if (!this.light) {
-        if (this.times > 0 && this.lightTimes >= this.times ) return this.setState(StandBy)
+        if (this.times > 0 && this.lightTimes >= this.times) return this.setState(StandBy)
         if (this.type == 'alwaysOn') return
       } else {
-        this.lightTimes ++
+        this.lightTimes++
       }
       this.light = !this.light
       this.createNextTimer()
@@ -121,20 +122,22 @@ class LEDControl extends require('events') {
   async setAsync(cmd, byte) {
     if (!this.i2c1) throw new Error('Not initialized yet')
     return new Promise((resolve, reject) => {
-      this.i2c1.writeByte(this.addr, cmd, byte, 
+      this.i2c1.writeByte(this.addr, cmd, byte,
         err => err ? reject(err) : resolve())
     })
   }
 
   get(cmd, num) {
     if (!this.i2c1) throw new Error('Not initialized yet')
-    let result =  this.i2c1.readByteSync(this.addr, cmd)
+    let result = this.i2c1.readByteSync(this.addr, cmd)
     return `${!num?'0x':''}${result.toString(num || 16)}`
   }
 
-  getName() { return this.state.constructor.name}
+  getName() {
+    return this.state.constructor.name
+  }
 
-  setLedMode (value) {
+  setLedMode(value) {
     // 0x07 pattern mode
     // 0x06 manual mode
     this.set(0x04, value)
@@ -147,47 +150,47 @@ class LEDControl extends require('events') {
     this.set(0x11, g)
     this.set(0x12, b)
   }
-  
+
   setLed([r1, r2, r3, r4], [g1, g2, g3, g4], [b1, b2, b3, b4]) {
-    this.set(0x10, r1 || 0x00)
-    this.set(0x13, r2 || 0x00)
-    this.set(0x16, r3 || 0x00)
-    this.set(0x19, r4 || 0x00)  
-    this.set(0x11, g1 || 0x00)
-    this.set(0x14, g2 || 0x00)
-    this.set(0x17, g3 || 0x00)
-    this.set(0x1A, g4 || 0x00)  
-    this.set(0x12, b1 || 0x00)
-    this.set(0x15, b2 || 0x00)
-    this.set(0x18, b3 || 0x00)
-    this.set(0x1B, b4 || 0x00)  
+    this.set(0x10, g1 || 0x00)
+    this.set(0x13, g2 || 0x00)
+    this.set(0x16, g3 || 0x00)
+    this.set(0x19, g4 || 0x00)
+    this.set(0x11, b1 || 0x00)
+    this.set(0x14, b2 || 0x00)
+    this.set(0x17, b3 || 0x00)
+    this.set(0x1A, b4 || 0x00)
+    this.set(0x12, r1 || 0x00)
+    this.set(0x15, r2 || 0x00)
+    this.set(0x18, r3 || 0x00)
+    this.set(0x1B, r4 || 0x00)
   }
-  
+
   // PWMs
-  setPWMS (l1, l2, l3) {
+  setPWMS(l1, l2, l3) {
     this.set(0x1C, l1 || 0x00)
     this.set(0x1D, l2 || 0x00)
     this.set(0x1E, l3 || 0x00)
   }
 
-  async setPWMSAsync (l1, l2, l3) {
+  async setPWMSAsync(l1, l2, l3) {
     await this.setAsync(0x1C, l1 || 0x00)
     await this.setAsync(0x1D, l2 || 0x00)
     await this.setAsync(0x1E, l3 || 0x00)
   }
-  
+
   setTRiseAndOn(v1, v2, v3) {
     this.set(0x30, v1 || 0x00)
     this.set(0x35, v2 || 0x00)
     this.set(0x3A, v3 || 0x00)
   }
-  
+
   setTFallAndOff(v1, v2, v3) {
     this.set(0x31, v1 || 0x00)
     this.set(0x36, v2 || 0x00)
     this.set(0x3B, v3 || 0x00)
   }
-  
+
   setTSlotAndDelay(v1, v2, v3) {
     this.set(0x32, v1 || 0x00)
     this.set(0x37, v2 || 0x00)
@@ -231,9 +234,9 @@ function convertColor(color) {
   let match = color.match(/^(#[0-9a-fA-F]{6}){1}$/g)
   if (!match) throw new Error('color is illegal')
   return [
-    parseHex(color.substring(1,3)), 
-    parseHex(color.substring(3,5)), 
-    parseHex(color.substring(5,7))
+    parseHex(color.substring(1, 3)),
+    parseHex(color.substring(3, 5)),
+    parseHex(color.substring(5, 7))
   ]
 }
 
