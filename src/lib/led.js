@@ -1,4 +1,10 @@
-/* * @Author: Harry  * @Date: 2019-07-08 11:14:28  * @Last Modified by:   Harry  * @Last Modified time: 2019-07-08 11:14:28  */
+/* 
+ * @Author: Harry
+ * @Date: 2019-07-08 11:14:28
+ * @Last Modified by: JackYang
+ * @Last Modified time: 2019-07-08 11:41:07
+ */
+
 const i2c = require('i2c-bus')
 
 class State {
@@ -145,10 +151,12 @@ class LEDControl extends require('events') {
     this.set(0x06, value)
   }
 
+  // harry fix it for backus
+  // because of led-pin change
   setLed1(r, g, b) {
-    this.set(0x10, r)
-    this.set(0x11, g)
-    this.set(0x12, b)
+    this.set(0x10, g)
+    this.set(0x11, b)
+    this.set(0x12, r)
   }
 
   setLed([r1, r2, r3, r4], [g1, g2, g3, g4], [b1, b2, b3, b4]) {
