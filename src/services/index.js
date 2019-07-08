@@ -520,8 +520,17 @@ class AppService {
       .catch(e => (this.operation = null, callback(e)))
   }
 
-  getUpgradeList(cb) {
-    return this.upgrade.list(cb)
+  getUpgradeList(local, cb) {
+    return local ? this.upgrade.listLocal(cb)
+      :this.upgrade.listAll(cb)
+  }
+
+  upgradeDevice(version, cb) {
+    return this.upgrade.upgrade(version, cb)
+  }
+
+  upgradeConfirm(cb) {
+    return this.upgrade.confirm(cb)
   }
 
   updateDeviceName (user, name, callback) {

@@ -16,7 +16,8 @@
     "roots": {
       "p": "/run/cowroot/root/data",
       "winas": "/root/winas",
-      "tmp": ""
+      "tmp": "",
+      "vols": "/run/cowroot/root/vols"
     },
     "dirs": {
       "certDir": "/run/cowroot/root/data/certificate",
@@ -38,7 +39,7 @@
     }
   },
   "provision": {
-    "address": "http://10.10.9.134:8080"
+    "address": "http://10.10.9.71:8080"
   },
   "ecc": {
     "bus": 1

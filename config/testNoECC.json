@@ -1,6 +1,6 @@
 {
   "ecc": {
-    "bus": 1
+    "bus": 0
   },
   "pipe": {
     "baseURL": "https://test.aidingnan.com"

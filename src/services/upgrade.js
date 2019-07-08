@@ -1,40 +1,28 @@
+/*
+ * @Author: JackYang
+ * @Date: 2019-07-08 14:06:53  
+ * @Last Modified by: JackYang
+ * @Last Modified time: 2019-07-08 17:06:53
+ * 
+ */
 const fs = require('fs')
 const event = require('events')
+const Promise = require('bluebird')
+const child = Promise.promisifyAll(require('child_process'))
+
+const UUID = require('uuid')
+const mkdirp = require('mkdirp')
+const rimraf = require('rimraf')
 const Config = require('config')
 const debug = require('debug')('ws:upgrade')
 
-const State = require('../lib/state')
 const Fetch = require('../lib/fetch')
 const Download = require('../lib/download')
 
 const upgradeConf = Config.get('upgrade')
+
 const isHighVersion = (current, next) => current < next
-
-class Base extends State {
-  debug(...args) {
-    debug(...args)
-  }
-
-  checkout() {
-
-  }
-
-  confirm() {
-
-  }
-}
-
-class Upgradeing extends Base {
-
-}
-
-class Upgradeed extends Base {
-
-}
-
-class Failed extends Base {
-
-}
+const TMPVOL = 'e56e1a2e-9721-4060-87f4-0e6c3ba3574b'
 
 /**
  * fetch + download
@@ -51,10 +39,11 @@ class Upgrade extends event {
     this.fetcher = new Fetch(true)
     this.fetcher.on('Pending', this.onFetchData.bind(this))
     this.currentVersion = '0.0.0'
+    this.upgrading = false
     try {
       this.currentVersion = fs.readFileSync(upgradeConf.version).toString().trim()
     } catch (e) {
-      console.log(e)
+      console.log(e.message)
     }
   }
 
@@ -68,6 +57,7 @@ class Upgrade extends event {
       this._downloader.destroy()
     }
     this._downloader = value
+    if (!value) return
     this._downloader.on('Finished', () => {})
     this._downloader.on('Failed', () => {})
   }
@@ -103,19 +93,66 @@ class Upgrade extends event {
       debug('Invalid Fetch Data')
   }
 
-  upgrade(version, callback) {
-    // check downloader status === Finished
-    // btrfs subvolume create uuid
-    // tar xzf
-    // btrfs subvolume snap -r uuid ruuid
-    // rm -r  uuid
-    // cowroot_checkout ruuid
-    // ???
-    // cowroot_confirm
+  // check downloader status === Finished
+  // btrfs subvolume create uuid
+  // tar xzf
+  // btrfs subvolume snap -r uuid ruuid
+  // rm -r  uuid
+  // cowroot_checkout ruuid
+  // ???
+  // cowroot_confirm
+  async upgradeAsync(version) {
+    if (!/[\d+][\.\d+]*/.test(version))
+      throw new Error('version format error')
+    if (this.downloader && this.downloader.status !== 'Finished') {
+        this.downloader.destroy()
+        this.downloader = null
+    }
+    let list= await listLocalAsync()
+    if (!list.find(x => x === version + '.tar.gz')) {
+      throw new Error('given version not found or not downloaded')
+    }
+    if (this.upgrading)
+      throw new Error('upgrading')
+    this.upgrading = true
+    try{
+      const tmpvol = path.join(Config.storage.roots.vols, TMPVOL)
+      rimraf.sync(tmpvol)
+      mkdirp.sync(tmpvol)
+      await child.execAsync(`btrfs subvolume create ${ tmpvol }`)
+      await child.execAsync(`tar xf ${ path.join(this.dir, version + '.tar.gz') } -C ${ tmpvol }`)
+      const roUUID = UUID.v4()
+      await child.execAsync(`btrfs subvolume snapshot ${tmpvol} ${ path.join(Config.storage.roots.vols, roUUID) }`)
+      rimraf.sync(tmpvol)
+      await child.execAsync(`cowroot-checkout -m ro ${roUUID}`)
+    }finally{
+      this.upgrading = false
+    }
   }
 
-  list (callback) {
+  upgrade(version, callback) {
+    this.upgradeAsync(version)
+      .then(x => {
+        callback(null)
+        child.exec('sleep 2; reboot')
+      })
+      .catch(e => callback(e))
+  }
+
+  confirm(callback) {
+    child.exec('cowroot-confirm', e => callback(e))
+  }
+
+  listAll (callback) {
     return callback ? this.fetcher.start(callback) : this.fetcher.view()
+  }
+
+  listLocal (callback) {
+    fs.readdir(this.dir, callback)
+  }
+
+  async listLocalAsync() {
+    return fs.promises.readdir(this.dir)
   }
 
   view() {

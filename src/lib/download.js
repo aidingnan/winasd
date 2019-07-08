@@ -1,3 +1,4 @@
+/* * @Author: JackYang  * @Date: 2019-07-08 14:06:37  * @Last Modified by:   JackYang  * @Last Modified time: 2019-07-08 14:06:37  */
 const fs = require('fs')
 const path = require('path')
 const EventEmitter = require('events')
@@ -77,14 +78,20 @@ class Checking extends State {
     this.ctx.fileDoc = data
     // TODO: check free partition version
     fs.lstat(srcP, (err, stat) => {
+      if (this.destroy) return
       if (err) {
-        rimraf(srcP, err =>{
+        rimraf(srcP, err => {
           this.setState('Working', data)
         })
       } else {
         this.setState('Finished', srcP, stat.size)
       }
     })
+  }
+
+  destroy() {
+    this.destroy = true
+    super.destroy()
   }
 }
 
@@ -143,8 +150,7 @@ class Working extends State {
     return this.ws.bytesWritten
   }
 
-  exit() {
-  }
+  exit() {}
 
   destroy() {
     this.rs.removeAllListeners('error')
@@ -156,6 +162,7 @@ class Working extends State {
     this.rs.abort()
     this.ws.destroy()
     this.hashT.destroy()
+    super.destroy()
   }
 }
 
