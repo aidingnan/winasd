@@ -2,11 +2,12 @@
  * @Author: JackYang
  * @Date: 2019-07-08 14:06:53  
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-07-09 18:13:32
+ * @Last Modified time: 2019-07-09 18:22:45
  * 
  */
 const fs = require('fs')
 const event = require('events')
+const path = require('path')
 const Promise = require('bluebird')
 const child = Promise.promisifyAll(require('child_process'))
 
@@ -77,7 +78,7 @@ class Upgrade extends event {
         if (isHighVersion(this.currentVersion, version)) {
           // check if downloading
           if (this.downloader && !isHighVersion(this.downloader.version, version)) {
-            debug('already ' + this.downloader.status())
+            debug('already ' + this.downloader.status)
           } else {
             this.downloader = new Download(latest.Key, this.tmpDir, this.dir, version)
           }
@@ -118,7 +119,6 @@ class Upgrade extends event {
     try{
       const tmpvol = path.join(Config.storage.roots.vols, TMPVOL)
       rimraf.sync(tmpvol)
-      mkdirp.sync(tmpvol)
       await child.execAsync(`btrfs subvolume create ${ tmpvol }`)
       await child.execAsync(`tar xf ${ path.join(this.dir, version + '.tar.gz') } -C ${ tmpvol }`)
       const roUUID = UUID.v4()
