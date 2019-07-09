@@ -2,7 +2,7 @@
  * @Author: JackYang
  * @Date: 2019-07-08 14:06:53  
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-07-08 17:06:53
+ * @Last Modified time: 2019-07-09 18:13:32
  * 
  */
 const fs = require('fs')
@@ -108,7 +108,7 @@ class Upgrade extends event {
         this.downloader.destroy()
         this.downloader = null
     }
-    let list= await listLocalAsync()
+    let list= await this.listLocalAsync()
     if (!list.find(x => x === version + '.tar.gz')) {
       throw new Error('given version not found or not downloaded')
     }

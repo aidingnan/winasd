@@ -78,7 +78,7 @@ class Checking extends State {
     this.ctx.fileDoc = data
     // TODO: check free partition version
     fs.lstat(srcP, (err, stat) => {
-      if (this.destroy) return
+      if (this.destroyed) return
       if (err) {
         rimraf(srcP, err => {
           this.setState('Working', data)
@@ -90,7 +90,7 @@ class Checking extends State {
   }
 
   destroy() {
-    this.destroy = true
+    this.destroyed = true
     super.destroy()
   }
 }
