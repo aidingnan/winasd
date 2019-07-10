@@ -11,6 +11,7 @@ const Config = require('config')
 
 const Client = require('../lib/mqttClient')
 const awsCA = require('../lib/awsCA')
+const awsCA_RSA = require('../lib/awsCA-RSA')
 
 const storageConf = Config.get('storage')
 const provisionConf = Config.get('provision')
@@ -71,7 +72,7 @@ class PreBuild extends State {
               child.execSync(`openssl req -new -subj "/C=CN/CN=abc/O=wisnuc" -key ${ path.join(certFolder, pkeyName)} > ${ path.join(certFolder, csrName)}`)
               this.ctx.sn = deviceSN()
               fs.writeFileSync(path.join(certFolder, snName), this.ctx.sn)
-              fs.writeFileSync(path.join(certFolder, caName), awsCA)
+              fs.writeFileSync(path.join(certFolder, caName), awsCA_RSA)
             }
             catch(e) {
               callback(e)
@@ -87,9 +88,7 @@ class PreBuild extends State {
 
   // create csr use hardware atecc508/608
   createCsr(callback) {
-    mkdirp(certFolder, err => {
-      if (err) return callback(err)
-      
+    mkdirp(certFolder, err => {      
       if (err) return callback(err)
       this.ctx.ctx.ecc.genCsr({ o: 'wisnuc', cn: 'xxoxxo'}, (err, der) => {
         if (err) return callback(err)

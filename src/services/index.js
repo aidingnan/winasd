@@ -1,3 +1,4 @@
+/* * @Author: JackYang  * @Date: 2019-07-10 16:32:51  * @Last Modified by:   JackYang  * @Last Modified time: 2019-07-10 16:32:51  */
 const fs = require('fs')
 const path = require('path')
 const Config = require('config')
@@ -23,11 +24,18 @@ const initEcc = require('../lib/atecc')
 const LocalAuth = require('./localAuth')
 const Provision = require('./provision')
 const NetworkManager = require('./network')
-const { reqBind, reqUnbind, verify, refresh } = require('../lib/lifecycle')
+const {
+  reqBind,
+  reqUnbind,
+  verify,
+  refresh
+} = require('../lib/lifecycle')
 
 const ProvisionFile = path.join(Config.storage.roots.p, Config.storage.files.provision)
 
-const NewError = (message, code) => Object.assign(new Error(message), { code })
+const NewError = (message, code) => Object.assign(new Error(message), {
+  code
+})
 
 const EPERSISTENT = NewError('mount persistent partition failed', 'EPERSISTENT')
 const EUSERSTORE = NewError('user store load failed', 'EUSERSTORE')
@@ -64,8 +72,8 @@ class Prepare extends BaseState {
   enter() {
     // mount and init persistence partition
     this.initPersistenceAsync().then(() => {
-      Config.system.withoutEcc ? this.startupWithoutEcc()
-        : this.startup()
+      Config.system.withoutEcc ? this.startupWithoutEcc() :
+        this.startup()
     }, err => this.setState('Failed', EPERSISTENT))
   }
 
@@ -90,7 +98,7 @@ class Prepare extends BaseState {
         if (err) return this.setState('Failed', EUSERSTORE)
         this.loadDevice((err, device) => {
           if (err) return this.setState('Failed', EDEVICE)
-          this.ctx.userStore = userStore  // bound user info
+          this.ctx.userStore = userStore // bound user info
           this.ctx.deviceInfo = device
           this.ctx.deviceSN = device.sn // deviceSN
           this.setState('Starting')
@@ -101,17 +109,19 @@ class Prepare extends BaseState {
 
   // init ecc first
   startup() {
-    initEcc(Config.ecc.bus, (err, ecc) => {
-      if (err) return this.setState('Failed',EECCINIT)
-      ecc.preset(e => {
-        if(e) return this.setState('Failed',EECCPRESET)
-        this.ctx.ecc = ecc
-        this.loadDevice((err, { sn }) => { // provision need
-          if (err) return this.setState('Failed', EDEVICE)
-          this.ctx.deviceSN = sn
-          this.initLedService((err, ledService) => { // ignore led start failed
-            if (err) console.log('LED Service Start Error')
-            this.ctx.ledService = ledService
+    this.initLedService((err, ledService) => { // ignore led start failed
+      if (err) console.log('LED Service Start Error')
+      this.ctx.ledService = ledService
+      initEcc(Config.ecc.bus, (err, ecc) => {
+        if (err) return this.setState('Failed', EECCINIT)
+        ecc.preset(e => {
+          if (e) return this.setState('Failed', EECCPRESET)
+          this.ctx.ecc = ecc
+          this.loadDevice((err, {
+            sn
+          }) => { // provision need
+            if (err) return this.setState('Failed', EDEVICE)
+            this.ctx.deviceSN = sn
             this.startupWithoutEcc()
           })
         })
@@ -144,7 +154,7 @@ class Prepare extends BaseState {
     })
 
     userStore.once('StateEntered', state => {
-      if(state === 'Failed')
+      if (state === 'Failed')
         return callback(userStore.state.err)
     })
   }
@@ -154,12 +164,16 @@ class Prepare extends BaseState {
     if (Config.system.withoutEcc) {
       fs.readFile(path.join(Config.storage.dirs.certDir, 'deviceSN'), (err, data) => {
         if (err) return callback(err)
-        return callback(null, { sn: data.toString().trim()})
+        return callback(null, {
+          sn: data.toString().trim()
+        })
       })
     } else {
       this.ctx.ecc.serialNumber({}, (err, sn) => {
         if (err) return callback(err)
-        return callback(null, { sn: (process.env.NODE_ENV.startsWith('test') ? 'test_' : '') + sn })
+        return callback(null, {
+          sn: (process.env.NODE_ENV.startsWith('test') ? 'test_' : '') + sn
+        })
       })
     }
   }
@@ -215,7 +229,7 @@ class Starting extends BaseState {
           this.ctx.state.constructor.name === 'Bound' ?
             this.ctx.ledService.run('#00ff00', 'alwaysOn') :
             this.ctx.ledService.run('#0000ff', 'breath')
-        } catch(e) {
+        } catch (e) {
           console.log('LED SERVICE FAILED')
         }
       }
@@ -238,13 +252,13 @@ class Starting extends BaseState {
 class Unbind extends BaseState {
   enter() {
     this.ctx.channel = new Channel(this.ctx)
-    try{
+    try {
       this.ctx.ledService.run('#0000ff', 'breath')
-    } catch(e) {
+    } catch (e) {
       console.log('LedService RUN error: ', e)
     }
     this.ctx.channel.once('ChannelConnected', (device, user) => {
-      if (user){ // mismatch
+      if (user) { // mismatch
         console.log('****** cloud device bind state mismatch, check signature *****')
         verify(device.info.signature, (err, verifyed) => {
           if (err || !verifyed) {
@@ -265,17 +279,30 @@ class Unbind extends BaseState {
     if (this.bindingFlag) return process.nextTick(() => callback(new Error('allready in binding state')))
     this.bindingFlag = true
     if (!this.ctx.token) return process.nextTick(() => callback(new Error('Winas Net Error')))
-    return reqBind(this.ctx.ecc, encrypted, this.ctx.token, (err, data) => {
-      if (err) {
-        this.bindingFlag = false
-        return callback(err)
-      }
-      let user = {
-        id: data.data.id,
-        username: data.data.username,
-        phone: data.data.username
-      }
-      this.setState('Binding', user, callback)
+    this.validateBlock(err => {
+      if (err) return callback(err)
+      return reqBind(this.ctx.ecc, encrypted, this.ctx.token, (err, data) => {
+        if (err) {
+          this.bindingFlag = false
+          return callback(err)
+        }
+        let user = {
+          id: data.data.id,
+          username: data.data.username,
+          phone: data.data.username
+        }
+        this.setState('Binding', user, callback)
+      })
+    })
+  }
+
+  validateBlock(callback) {
+    fs.exists('/sys/block/sda/size', exists => {
+      if (!exists) return callback(new Error('sda not found'))
+      fs.readFile('/sys/block/sda/size', (err, data) => {
+        if (err || data.toString().trim() === '0') return callback(err || new Error('sda size 0'))
+        return callback(null)
+      })
     })
   }
 
@@ -297,12 +324,16 @@ class Unbind extends BaseState {
 class Binding extends BaseState {
   enter(user, callback = () => {}) {
     this.start(user)
-      .then(() => (process.nextTick(() => callback(null,user)), this.setState('Bound')))
-      .catch(e => (process.nextTick(() => callback(Object.assign(new Error('clean drive failed'), 
-        { code: 'EBINDING' }))), this.setState('Failed', Object.assign(e, { code: 'EBINDING' }))))
+      .then(() => (process.nextTick(() => callback(null, user)), this.setState('Bound')))
+      .catch(e => (process.nextTick(() => callback(Object.assign(new Error('clean drive failed'), {
+        code: 'EBINDING'
+      }))), this.setState('Failed', Object.assign(e, {
+        code: 'EBINDING'
+      }))))
   }
 
   async start(user) {
+    await this.cleanVolumeAsync()
     // save user
     await new Promise((resolve, reject) => this.ctx.userStore.save(user, err => err ? reject(err) : resolve()))
     // refresh lifecycle
@@ -310,13 +341,30 @@ class Binding extends BaseState {
     // update ble advertisement
     this.ctx.bled.updateAdv()
   }
+
+  async cleanVolumeAsync() {
+    // FIXME: where is the data device
+    try {
+      await child.execAsync('umount -f /dev/sda')
+    } catch (e){
+      if (!e.message || !e.message.includes('not mounted')){ 
+        throw e
+      }
+    }
+    // FIXME:
+    await child.execAsync(`mkfs.btrfs -f /dev/sda`)
+
+    await child.execAsync('partprobe')
+  }
 }
 
 class Unbinding extends BaseState {
   enter() {
     this.doUnbind()
       .then(() => this.setState('Unbind'))
-      .catch(e => this.setState('Failed', Object.assign(e, { code: 'EUNBINDING' })))
+      .catch(e => this.setState('Failed', Object.assign(e, {
+        code: 'EUNBINDING'
+      })))
   }
 
   async doUnbind() {
@@ -343,9 +391,9 @@ class Unbinding extends BaseState {
  */
 class Bound extends BaseState {
   enter() {
-    try{
+    try {
       this.ctx.ledService.run('#00ff00', 'alwaysOn')
-    } catch(e) {
+    } catch (e) {
       console.log('LedService RUN error: ', e)
     }
     this.ctx.channel = new Channel(this.ctx)
@@ -353,7 +401,7 @@ class Bound extends BaseState {
       if (!user) {
         // save user to user store
         this.ctx.userStore.save(user, console.log) // ignore error
-        
+
         console.log('****** cloud device Bound state mismatch, check signature *****')
         verify(device.info && device.info.signature, (err, verifyed) => {
           if (err || !verifyed) {
@@ -399,9 +447,9 @@ class Failed extends BaseState {
   enter(reason) {
     this.reason = reason
     console.log(reason)
-    try{
+    try {
       this.ctx.ledService.run('#ff0000', 'breath')
-    } catch(e) {
+    } catch (e) {
       console.log('LedService RUN error: ', e)
     }
   }
@@ -432,7 +480,7 @@ class AppService {
         return this._winas
       },
       set(x) {
-        if(this._winas) {
+        if (this._winas) {
           this._winas.removeAllListeners()
           if (!this._winas.destroyed)
             this._winas.destroy()
@@ -489,40 +537,40 @@ class AppService {
   handleWinasMessage(message) {
     debug('FROM WINAS MESSAGE:\n', message)
   }
-  
+
   // return current software mode
   isBeta() {
     return true
   }
 
   // return node path
-  nodePath () {
+  nodePath() {
     return this.config.system.globalNode ? 'node' : '/mnt/winas/node/bin/node'
   }
 
   // start winas
-  appStart (callback) {
+  appStart(callback) {
     if (!this.winas) return process.nextTick(() => callback(EApp404))
     if (this.operation) return process.nextTick(() => callback(ERace))
     this.operation = 'appStart'
     this.winas.startAsync()
-      .then(() => (this.operation = null, callback(null)))  
+      .then(() => (this.operation = null, callback(null)))
       .catch(e => (this.operation = null, callback(e)))
   }
 
   // stop winas
-  appStop (callback) {
+  appStop(callback) {
     if (!this.winas) return process.nextTick(() => callback(EApp404))
     if (this.operation) return process.nextTick(() => callback(ERace))
     this.operation = 'appStop'
     this.winas.stopAsync()
-      .then(() => (this.operation = null, callback(null)))  
+      .then(() => (this.operation = null, callback(null)))
       .catch(e => (this.operation = null, callback(e)))
   }
 
   getUpgradeList(local, cb) {
-    return local ? this.upgrade.listLocal(cb)
-      :this.upgrade.listAll(cb)
+    return local ? this.upgrade.listLocal(cb) :
+      this.upgrade.listAll(cb)
   }
 
   upgradeDevice(version, cb) {
@@ -533,7 +581,7 @@ class AppService {
     return this.upgrade.confirm(cb)
   }
 
-  updateDeviceName (user, name, callback) {
+  updateDeviceName(user, name, callback) {
     Device.setDeviceName(name, (err, data) => {
       callback(err, data)
       this.deviceUpdate()
@@ -541,8 +589,8 @@ class AppService {
   }
 
   // send mqtt message to cloud if device update
-  deviceUpdate () {
-    this.channel && this.deviceSN && this.channel.publish(`device/${ this.deviceSN }/info`, JSON.stringify({ 
+  deviceUpdate() {
+    this.channel && this.deviceSN && this.channel.publish(`device/${ this.deviceSN }/info`, JSON.stringify({
       lanIp: Device.networkInterface().address,
       name: Device.deviceName()
     }))
@@ -551,7 +599,7 @@ class AppService {
   requestBind(...args) {
     this.state.requestBind(...args)
   }
-  
+
   requestUnbind(...args) {
     this.state.requestUnbind(...args)
   }
@@ -565,7 +613,9 @@ class AppService {
       winas: this.winas && this.winas.view(),
       provision: this.provision && this.provision.view(),
       channel: this.channel && this.channel.view(),
-      device: Object.assign(Device.hardwareInfo(), { sn: this.deviceSN }),
+      device: Object.assign(Device.hardwareInfo(), {
+        sn: this.deviceSN
+      }),
       led: this.ledService && this.ledService.view(),
       winasd: {
         state: this.state.constructor.name,
