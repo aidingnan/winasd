@@ -39,7 +39,7 @@
     }
   },
   "provision": {
-    "address": "http://10.10.9.71:8080"
+    "address": "http://10.10.9.122:8080"
   },
   "ecc": {
     "bus": 1
