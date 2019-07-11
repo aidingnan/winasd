@@ -79,11 +79,11 @@ class Starting extends State {
         PATH: `/wisnuc/node/base/bin:${process.env.PATH}`,
         NODE_ENV: process.env.WINAS_ENV ? process.env.WINAS_ENV : 'winas',
         NODE_CONFIG_ENV: process.env.WINAS_ENV ? process.env.WINAS_ENV : 'winas',
-        NODE_CONFIG_DIR: path.join(this.ctx.winasDir, 'build', 'config')
+        NODE_CONFIG_DIR: path.join(this.ctx.winasDir, 'config')
       }),
       stdio: ['ignore', 'inherit', 'inherit', 'ipc'] 
     }
-    let appPath = path.join(this.ctx.winasDir, 'build', 'app.js')
+    let appPath = path.join(this.ctx.winasDir, 'src', 'app.js')
     let args = [appPath, ...process.argv.slice(2)]
 
     this.winas = child.spawn(this.ctx.nodePath(), args, opts)
