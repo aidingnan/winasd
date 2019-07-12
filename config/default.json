@@ -54,5 +54,8 @@
   },
   "pipe": {
     "baseURL": "https://test.aidingnan.com"
+  },
+  "cloud": {
+    "addr": "https://test.aidingnan.com"
   }
 }

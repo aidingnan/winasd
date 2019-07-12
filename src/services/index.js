@@ -545,7 +545,7 @@ class AppService {
 
   // return node path
   nodePath() {
-    return this.config.system.globalNode ? 'node' : '/mnt/winas/node/bin/node'
+    return this.config.system.globalNode ? 'node' : '/usr/bin/node'
   }
 
   // start winas

@@ -3,7 +3,7 @@ const xmlPaser = require('fast-xml-parser')
 const request = require('superagent')
 const Config = require('config')
 
-const fetchConf = Config.get('upgrade.fetch')
+const CloudConf = Config.get('cloud')
 
 const State = require('./state')
 
@@ -22,8 +22,8 @@ class Pending extends State {
     }
 
     this.startTime = new Date().getTime()
-    this.timeout = err ? 1 * MINUTE : 10 * MINUTE
-    this.timer = setTimeout(() => this.setState('Working'), 1000 * 60 * 60) 
+    this.timeout = err ? HOUR : 2 * HOUR
+    this.timer = setTimeout(() => this.setState('Working'), this.timeout) 
 
     if (data) this.ctx.emit('update', data)
   }
@@ -62,12 +62,7 @@ class Working extends State {
           err.res = res
           this.setState('Pending', err)
         } else {
-          try { 
-            this.data = xmlPaser.parse(res.body.toString()).ListBucketResult.Contents
-          } catch(e) {
-            this.err = e
-            return this.setState('Pending', e)
-          }
+          this.data = res.body.data
           this.setState('Pending', null, this.data)
         }
       })
@@ -92,9 +87,8 @@ class Fetch extends EventEmitter {
 
   constructor (isBeta) {
     super() 
-    this.url = isBeta ? fetchConf.beta : fetch.release
+    this.url = CloudConf.addr + '/s/v1/station/upgrade'
     this.last = null
-
     new Working(this)
   }
 

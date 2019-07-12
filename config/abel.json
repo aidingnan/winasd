@@ -5,6 +5,9 @@
   "pipe": {
     "baseURL": "https://test.aidingnan.com"
   },
+  "cloud": {
+    "addr": "https://test.aidingnan.com"
+  },
   "system": {
     "globalNode": true,
     "withoutEcc": false

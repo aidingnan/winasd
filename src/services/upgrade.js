@@ -2,10 +2,12 @@
  * @Author: JackYang
  * @Date: 2019-07-08 14:06:53  
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-07-10 11:18:14
+ * @Last Modified time: 2019-07-12 18:26:48
  * 
  */
-const fs = require('fs')
+
+const Promise = require('bluebird')
+const fs = Promise.promisifyAll(require('fs'))
 const event = require('events')
 const path = require('path')
 const Promise = require('bluebird')
@@ -31,8 +33,7 @@ const TMPVOL = 'e56e1a2e-9721-4060-87f4-0e6c3ba3574b'
  * 然后下载新版本
  */
 class Upgrade extends event {
-
-  constructor (ctx, tmpDir, dir) {
+  constructor(ctx, tmpDir, dir) {
     super()
     this.ctx = ctx
     this.tmpDir = tmpDir
@@ -62,36 +63,34 @@ class Upgrade extends event {
     this._downloader.on('Finished', () => {})
     this._downloader.on('Failed', () => {})
   }
-
-  // 文件命名： abel-20181021-0.1.1-acbbbcca
+  /**
+   * {
+   * "tag": "0.0.1",
+   * "hash": "7b85477539c66c2a66cbe5efcc718257840c69f88ab9885389a3d229ac589599",
+   * "url": "https://dingnan-upgrade.s3.cn-north-1.amazonaws.com.cn/beta/backus/backus-20190704-0.1.1-accbaa.tar.gz",
+   * "desc": "测试镜像",
+   * "preRelease": 1,
+   * "gradient": 100,
+   * "createdAt": "2019-07-09T06:04:49.000Z",
+   * "type": "a1"
+   * }
+   */
   onFetchData() {
     let data = this.fetcher.last.data
     if (this.fetcher.last.error || !data) return // fetch error
     let docs = []
     if (Array.isArray(data))
-      docs = data.filter(d => d.Key.endsWith('.json')).sort((a, b) => a.LastModified < b.LastModified)
+      docs = data.sort((a, b) => a.tag < b.tag)
     if (docs.length) {
       let latest = docs[0]
-      let nameArr = latest.Key.slice(0, -5).split('-').map(x => x.trim())
-      if (nameArr.length && nameArr.length === 4) {
-        const version = nameArr[2]
-        if (isHighVersion(this.currentVersion, version)) {
-          // check if downloading
-          if (this.downloader && !isHighVersion(this.downloader.version, version)) {
-            debug('already ' + this.downloader.status)
-          } else {
-            this.downloader = new Download(latest.Key, this.tmpDir, this.dir, version)
-          }
-        } else {
-          debug('current system is newest')
-        }
+      if (isHighVersion(this.currentVersion, version)) {
+        if (!this.downloader || isHighVersion(this.downloader.version, version))
+          this.downloader = new Download(latest, this.tmpDir, this.dir)
+        else
+          debug('downloader already start')
       }
-      else {
-        debug('Invalid doc name: ', latest.Key)
-      }
-    }
-    else
-      debug('Invalid Fetch Data')
+    } else
+      debug('Fetch Empty Data')
   }
 
   // check downloader status === Finished
@@ -106,26 +105,27 @@ class Upgrade extends event {
     if (!/[\d+][\.\d+]*/.test(version))
       throw new Error('version format error')
     if (this.downloader && this.downloader.status !== 'Finished') {
-        this.downloader.destroy()
-        this.downloader = null
+      this.downloader.destroy()
+      this.downloader = null
     }
-    let list= await this.listLocalAsync()
-    if (!list.find(x => x === version + '.tar.gz')) {
+    let list = await this.listLocalAsync()
+    if (!list.find(x => x === version)) {
       throw new Error('given version not found or not downloaded')
     }
     if (this.upgrading)
       throw new Error('upgrading')
     this.upgrading = true
-    try{
+    try {
       const tmpvol = path.join(Config.storage.roots.vols, TMPVOL)
       rimraf.sync(tmpvol)
       await child.execAsync(`btrfs subvolume create ${ tmpvol }`)
-      await child.execAsync(`tar xf ${ path.join(this.dir, version + '.tar.gz') } -C ${ tmpvol }`)
+      await child.execAsync(`tar xf ${ path.join(this.dir, version) } -C ${ tmpvol }`)
+      await fs.writeFileAsync(path.join(tmpvol, 'etc', 'version'), version)
       const roUUID = UUID.v4()
       await child.execAsync(`btrfs subvolume snapshot ${tmpvol} ${ path.join(Config.storage.roots.vols, roUUID) }`)
       rimraf.sync(tmpvol)
       await child.execAsync(`cowroot-checkout -m ro ${roUUID}`)
-    }finally{
+    } finally {
       this.upgrading = false
     }
   }
@@ -143,16 +143,28 @@ class Upgrade extends event {
     child.exec('cowroot-confirm', e => callback(e))
   }
 
-  listAll (callback) {
+  listAll(callback) {
     return callback ? this.fetcher.start(callback) : this.fetcher.view()
   }
 
-  listLocal (callback) {
-    fs.readdir(this.dir, callback)
+  listLocal(callback) {
+    fs.readdir(this.dir, (err, data) => {
+      if (err) return callback(err)
+      data = data.sort((a, b) => a < b)
+      if (data.length > 1) {// error case
+        data.slice(1).forEach(x => {
+          try {
+            rimraf.sync(path.join(this.dir, x))
+          } catch (e) {/* ignore */ }
+        })
+        data = [data[0]]
+      }
+      return callback(null, data)
+    })
   }
 
   async listLocalAsync() {
-    return fs.promises.readdir(this.dir)
+    return Promise.promisify(this.listLocal).bind(this)()
   }
 
   view() {

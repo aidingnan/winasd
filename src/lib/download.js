@@ -14,8 +14,6 @@ const State = require('./state')
 
 const HOUR = 1 * 1000 * 60 * 60
 
-const upgradeConf = Config.get('upgrade')
-
 class HashTransform extends require('stream').Transform {
   constructor() {
     super()
@@ -40,48 +38,20 @@ class HashTransform extends require('stream').Transform {
   }
 }
 
-class Metadata extends State {
-  enter() {
-    super.enter()
-    const url = upgradeConf.address + '/' + this.ctx.bucketKey
-    debug(url)
-    this.req = request.get(url)
-    this.req
-      .then(res => {
-        if (!res.ok) {
-          let err = new Error('get upgrade metadata error')
-          this.setState('Failed', err)
-        } else {
-          this.setState('Checking', res.body)
-        }
-      }, error => {
-        this.setState('Failed', error)
-      })
-  }
-
-  exit() {
-    if (this.req) this.req.abort()
-    super.exit()
-  }
-}
-
 class Checking extends State {
-  enter(data) {
-    debug(data)
+  enter() {
     super.enter()
     mkdirp.sync(this.ctx.tmpDir)
     mkdirp.sync(this.ctx.dstDir)
 
-    let dstName = data.version + '.tar.gz'
+    let dstName = this.ctx.version
     let srcP = path.join(this.ctx.dstDir, dstName)
     this.ctx.dstPath = srcP
-    this.ctx.fileDoc = data
-    // TODO: check free partition version
     fs.lstat(srcP, (err, stat) => {
       if (this.destroyed) return
       if (err) {
         rimraf(srcP, err => {
-          this.setState('Working', data)
+          this.setState('Working')
         })
       } else {
         this.setState('Finished', srcP, stat.size)
@@ -97,10 +67,10 @@ class Checking extends State {
 
 //TODO: check hash and write to free partition
 class Working extends State {
-  enter(data) {
+  enter() {
     let tmpPath = path.join(this.ctx.tmpDir, UUID.v4())
-    let fHash = data.hash
-    let url = upgradeConf.address + '/' + this.ctx.bucketKey.slice(0, -4) + 'tar.gz'
+    let fHash = this.ctx.hash
+    let url = this.ctx.url
     debug('download url:', url)
     this.rs = request.get(url)
     this.rs.on('error', err => {
@@ -132,7 +102,7 @@ class Working extends State {
         e.code = 'ESIZEMISMATCH'
         this.setState('Failed', e)
       } else {
-        rimraf(this.ctx.dstDir, () => {
+        rimraf(this.ctx.dstDir, () => { // clean iso dir
           mkdirp(this.ctx.dstDir, err => {
             if (err) return this.setState('Failed', err)
             fs.rename(tmpPath, this.ctx.dstPath, err => {
@@ -171,7 +141,11 @@ class Failed extends State {
     super.enter()
     debug(err)
     this.error = err
-    setTimeout(() => this.setState('Metadata'), 1 * HOUR)
+    this.timer = setTimeout(() => this.setState('Checking'), 1 * HOUR)
+  }
+  
+  destroy() {
+    clearTimeout(this.timer)
   }
 }
 
@@ -184,13 +158,19 @@ class Finished extends State {
 }
 
 class Download extends EventEmitter {
-  constructor(bucketKey, tmpDir, dstDir, version) {
+  constructor(latest, tmpDir, dstDir, version) {
     super()
-    this.bucketKey = bucketKey
+    this.latest = latest
     this.tmpDir = tmpDir
     this.dstDir = dstDir
-    this.version = version
-    new Metadata(this)
+    this.url = latest.url
+    this.hash = latest.hash
+    this.desc = latest.desc
+    this.version = latest.version
+    this.gradient = latest.gradient //灰度值
+    this.createAt = latest.createAt
+    this.preRelease = latest.preRelease // 是否为beta版
+    new Checking(this)
   }
 
   bytesWritten() {
@@ -207,16 +187,15 @@ class Download extends EventEmitter {
   }
 
   view() {
-    return {
+    return Object.assign({}, this.latest, {
       version: this.version,
       state: this.status,
       bytesWritten: this.bytesWritten()
-    }
+    })
   }
 }
 
 Download.prototype.Working = Working
-Download.prototype.Metadata = Metadata
 Download.prototype.Failed = Failed
 Download.prototype.Finished = Finished
 Download.prototype.Checking = Checking
