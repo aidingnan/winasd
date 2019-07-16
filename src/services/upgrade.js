@@ -2,7 +2,7 @@
  * @Author: JackYang
  * @Date: 2019-07-08 14:06:53  
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-07-12 18:26:48
+ * @Last Modified time: 2019-07-16 10:52:00
  * 
  */
 
@@ -10,7 +10,6 @@ const Promise = require('bluebird')
 const fs = Promise.promisifyAll(require('fs'))
 const event = require('events')
 const path = require('path')
-const Promise = require('bluebird')
 const child = Promise.promisifyAll(require('child_process'))
 
 const UUID = require('uuid')
@@ -83,8 +82,8 @@ class Upgrade extends event {
       docs = data.sort((a, b) => a.tag < b.tag)
     if (docs.length) {
       let latest = docs[0]
-      if (isHighVersion(this.currentVersion, version)) {
-        if (!this.downloader || isHighVersion(this.downloader.version, version))
+      if (isHighVersion(this.currentVersion, latest.version)) {
+        if (!this.downloader || isHighVersion(this.downloader.version, latest.version))
           this.downloader = new Download(latest, this.tmpDir, this.dir)
         else
           debug('downloader already start')
