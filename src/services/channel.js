@@ -191,20 +191,47 @@ class Connected extends Base {
       phone: device.phoneNumber
     } : null
     // this.ctx.ctx.updateOwner(this.user, () => {})
-    
+    this.counter = 0
+    this.refreshTokenTime = 1000 * 60 * 60 * 2
     this.connection = connection
-    this.connection.on('message', this.ctx.handleIotMsg.bind(this.ctx))
+    this.connection.on('message', (...args) => {
+      this.revToken(...args) // hijack refresh token topic to reset waitTimer
+      this.ctx.handleIotMsg.bind(this.ctx)(...args)
+    })
     this.connection.on('close', () => this.setState('Failed', new Error('close')))
     this.connection.on('error', err => this.setState('Failed', err))
     this.connection.on('offline', () => this.setState('Failed', new Error('offline')))
     this.connection.subscribe(`cloud/${ this.ctx.sn }/pipe`)
     this.connection.subscribe(`cloud/${ this.ctx.sn }/users`)
     this.connection.subscribe(`cloud/${ this.ctx.sn }/token`)
-    this.timer = setInterval(() => {
-      this.publish(`device/${ this.ctx.sn }/token`, '') // refresh token
-    }, 1000 * 60 * 60 * 24)
+    this.timer = setTimeout(() => {
+      this.refreshToken() // refresh token
+    }, this.refreshTokenTime)
 
     this.ctx.emit('ChannelConnected', device, this.user)
+  }
+
+  // start refresh token
+  // 当重试三次累计90秒还不能收到token，视为连接失败
+  refreshToken() {
+    clearTimeout(this.waitTimer)
+    if (++this.counter > 3)
+      return this.setState('Failed', new Error('token refresh timeout 3 times over 90 seconds'))
+    this.publish(`device/${ this.ctx.sn }/token`, '') // refresh token
+    this.waitTimer = setTimeout(() => { // refresh timeout
+      this.refreshToken()
+    }, 30 * 1000)
+  }
+
+  // hijack refresh token topic to reset timer
+  revToken(topic) {
+    if (!topic || !topic.endsWith('token')) return // donot care this topic
+    clearTimeout(this.waitTimer)
+    this.counter = 0
+    clearTimeout(this.timer)
+    this.timer = setTimeout(() => { // refresh every 2 hours
+      this.refreshToken()
+    }, this.refreshTokenTime);
   }
 
   publish(...args) {
@@ -224,7 +251,8 @@ class Connected extends Base {
     this.connection.end()
     this.connection = undefined
     this.ctx.ctx.token = undefined
-    clearInterval(this.timer)
+    clearTimeout(this.timer)
+    clearTimeout(this.waitTimer)
   }
 }
 
