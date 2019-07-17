@@ -2,7 +2,7 @@
  * @Author: JackYang
  * @Date: 2019-07-08 14:06:53  
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-07-17 13:44:25
+ * @Last Modified time: 2019-07-17 16:15:16
  * 
  */
 
@@ -82,8 +82,8 @@ class Upgrade extends event {
       docs = data.sort((a, b) => a.tag < b.tag)
     if (docs.length) {
       let latest = docs[0]
-      if (isHighVersion(this.currentVersion, latest.version)) {
-        if (!this.downloader || isHighVersion(this.downloader.version, latest.version))
+      if (isHighVersion(this.currentVersion, latest.tag)) {
+        if (!this.downloader || isHighVersion(this.downloader.version, latest.tag))
           this.downloader = new Download(latest, this.tmpDir, this.dir)
         else
           debug('downloader already start')
@@ -118,7 +118,7 @@ class Upgrade extends event {
       const tmpvol = path.join(Config.storage.roots.vols, TMPVOL)
       rimraf.sync(tmpvol)
       await child.execAsync(`btrfs subvolume create ${ tmpvol }`)
-      await child.execAsync(`tar xf ${ path.join(this.dir, version) } -C ${ tmpvol }`)
+      await child.execAsync(`tar xf ${ path.join(this.dir, version) } -C ${ tmpvol } --zstd`)
       await fs.writeFileAsync(path.join(tmpvol, 'etc', 'version'), version)
       const roUUID = UUID.v4()
       await child.execAsync(`btrfs subvolume snapshot ${tmpvol} ${ path.join(Config.storage.roots.vols, roUUID) }`)
