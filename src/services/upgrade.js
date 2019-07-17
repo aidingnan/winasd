@@ -2,7 +2,7 @@
  * @Author: JackYang
  * @Date: 2019-07-08 14:06:53  
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-07-17 16:15:16
+ * @Last Modified time: 2019-07-17 16:52:12
  * 
  */
 
@@ -143,7 +143,14 @@ class Upgrade extends event {
   }
 
   listAll(callback) {
-    return callback ? this.fetcher.start(callback) : this.fetcher.view()
+    this.listLocal((err, data) => {
+      if (err) return callback(err)
+      this.fetcher.start((err, data2) => {
+        if (err) return callback(err)
+        return callback(null, data2.forEach(x => x.downloaded = data.includes(x.tag)))
+      })
+    })
+    return this.fetcher.start(callback)
   }
 
   listLocal(callback) {
