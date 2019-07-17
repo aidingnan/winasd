@@ -2,7 +2,7 @@
  * @Author: JackYang
  * @Date: 2019-07-08 14:06:53  
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-07-17 16:58:23
+ * @Last Modified time: 2019-07-17 17:00:52
  * 
  */
 
@@ -151,7 +151,6 @@ class Upgrade extends event {
         return callback(null, data2)
       })
     })
-    return this.fetcher.start(callback)
   }
 
   listLocal(callback) {
