@@ -2,7 +2,7 @@
  * @Author: JackYang
  * @Date: 2019-07-08 14:06:53  
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-07-17 16:57:25
+ * @Last Modified time: 2019-07-17 16:58:23
  * 
  */
 
@@ -147,8 +147,8 @@ class Upgrade extends event {
       if (err) return callback(err)
       this.fetcher.start((err, data2) => {
         if (err) return callback(err)
-        data2.forEach(x => x.downloaded = data.includes(x.tag)
-        return callback(null, data2))
+        data2.forEach(x => x.downloaded = data.includes(x.tag))
+        return callback(null, data2)
       })
     })
     return this.fetcher.start(callback)
