@@ -112,6 +112,9 @@ class BLED extends require('events') {
   }
 
   handleLocalAuth(type, packet) {
+    if (!this.ctx.localAuth) { // ctx not enter starting
+      this.update(type, { seq: packet.seq, error: Object.assign(new Error(`winasd in ${ this.ctx.state.name } state`), { code: 'ESTATE' }) })
+    }
     if (packet.action === 'req') {
       this.ctx.localAuth.request((err, data) => {
         if (err) return this.update(type, { seq: packet.seq, error: err })
@@ -130,6 +133,9 @@ class BLED extends require('events') {
    * data: {token}/{ssid, pwd}
    */
   handleNetworkSetting(type, packet) {
+    if (!this.ctx.localAuth) { // ctx not enter starting
+      this.update(type, { seq: packet.seq, error: Object.assign(new Error(`winasd in ${ this.ctx.state.name } state`), { code: 'ESTATE' }) })
+    }
     if (packet.action === 'addAndActive') {
       if (this.ctx.localAuth.verify(packet.token)) {
         this.nm.connect2(packet.body.ssid, packet.body.pwd, (err, data) => {

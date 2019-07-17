@@ -60,6 +60,10 @@ class BaseState extends State {
   debug(...args) {
     debug2(...args)
   }
+
+  name() {
+    return this.constructor.name
+  }
 }
 
 /**

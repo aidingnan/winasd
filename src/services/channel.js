@@ -123,13 +123,14 @@ class Connecting extends Base {
       callback(err, device, token, user)
     }
 
+    // start a timer to exit current state while connecting over 30 seconds
     timer = setTimeout(() => {
       device.removeAllListeners()
       device.on('error', () => {})
       device.end()
       device = undefined
       cb(new Error('ETIMEOUT'))
-    }, 30000) // FIXME:
+    }, 30 * 1000)
 
     device = new Client({
       clientCertificates: [
