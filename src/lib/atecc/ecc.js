@@ -195,7 +195,7 @@ class ECC {
   }
 
   async serialNumberAsync () {
-    let read = await this.readBytesZoneAsync(0, 0, 0, 12)
+    let read = await this.readBytesZoneAsync(0, 0, 0, 13)
     return Buffer.concat([read.slice(0, 4), read.slice(8)]).toString('hex')
   }
 

@@ -158,7 +158,7 @@ class Finished extends State {
 }
 
 class Download extends EventEmitter {
-  constructor(latest, tmpDir, dstDir, version) {
+  constructor(latest, tmpDir, dstDir) {
     super()
     this.latest = latest
     this.tmpDir = tmpDir
@@ -166,7 +166,7 @@ class Download extends EventEmitter {
     this.url = latest.url
     this.hash = latest.hash
     this.desc = latest.desc
-    this.version = latest.version
+    this.version = latest.tag
     this.gradient = latest.gradient //灰度值
     this.createAt = latest.createAt
     this.preRelease = latest.preRelease // 是否为beta版
