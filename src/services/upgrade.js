@@ -2,7 +2,7 @@
  * @Author: JackYang
  * @Date: 2019-07-08 14:06:53  
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-07-17 17:00:52
+ * @Last Modified time: 2019-07-19 12:29:40
  * 
  */
 
@@ -19,12 +19,83 @@ const Config = require('config')
 const debug = require('debug')('ws:upgrade')
 
 const Fetch = require('../lib/fetch')
+const State = require('../lib/state')
 const Download = require('../lib/download')
 
 const upgradeConf = Config.get('upgrade')
 
 const isHighVersion = (current, next) => current < next
 const TMPVOL = 'e56e1a2e-9721-4060-87f4-0e6c3ba3574b'
+
+class Base extends State {
+  debug(...args) {
+    debug(...args)
+  }
+
+  upgrade(version, callback) {
+    this.setState("Upgrading", version, callback)
+  }
+
+  name() {
+    this.constructor.name
+  }
+}
+
+class Pending extends Base {
+  
+}
+
+class Upgrading extends Base {
+  enter(version, callback) {
+    this.version = version
+    this.upgradeAsync(version)
+      .then(x => {
+        process.nextTick(() => callback(null))
+        this.setState("Finished")
+      })
+      .catch(e => 
+        (process.nextTick(() => callback(e)), this.setState("Failed")))
+  }
+
+  async upgradeAsync(version) {
+    if (!/[\d+][\.\d+]*/.test(version))
+      throw new Error('version format error')
+    if (this.ctx.downloader && this.ctx.downloader.status !== 'Finished') {
+      this.ctx.downloader.destroy()
+      this.ctx.downloader = null
+    }
+    let list = await this.ctx.listLocalAsync()
+    if (!list.find(x => x === version)) {
+      throw new Error('given version not found or not downloaded')
+    }
+    const tmpvol = path.join(Config.storage.roots.vols, TMPVOL)
+    rimraf.sync(tmpvol)
+    await child.execAsync(`btrfs subvolume create ${ tmpvol }`)
+    await child.execAsync(`tar xf ${ path.join(this.ctx.dir, version) } -C ${ tmpvol } --zstd`)
+    await fs.writeFileAsync(path.join(tmpvol, 'etc', 'version'), version)
+    const roUUID = UUID.v4()
+    await child.execAsync(`btrfs subvolume snapshot ${tmpvol} ${ path.join(Config.storage.roots.vols, roUUID) }`)
+    rimraf.sync(tmpvol)
+    await child.execAsync(`cowroot-checkout -m ro ${roUUID}`)
+  }
+
+  upgrade(version, callback) {
+    callback(new Error('race'))
+  }
+}
+
+class Finished extends Base {
+  enter(version) {
+    this.version = version
+  }
+}
+
+class Failed extends Base {
+  enter(version, e) {
+    this.version = version
+    this.error = error
+  }
+}
 
 /**
  * fetch + download
@@ -40,12 +111,12 @@ class Upgrade extends event {
     this.fetcher = new Fetch(true)
     this.fetcher.on('Pending', this.onFetchData.bind(this))
     this.currentVersion = '0.0.0'
-    this.upgrading = false
     try {
       this.currentVersion = fs.readFileSync(upgradeConf.version).toString().trim()
     } catch (e) {
       console.log(e.message)
     }
+    new Pending(this)
   }
 
   get downloader() {
@@ -92,50 +163,8 @@ class Upgrade extends event {
       debug('Fetch Empty Data')
   }
 
-  // check downloader status === Finished
-  // btrfs subvolume create uuid
-  // tar xzf
-  // btrfs subvolume snap -r uuid ruuid
-  // rm -r  uuid
-  // cowroot_checkout ruuid
-  // ???
-  // cowroot_confirm
-  async upgradeAsync(version) {
-    if (!/[\d+][\.\d+]*/.test(version))
-      throw new Error('version format error')
-    if (this.downloader && this.downloader.status !== 'Finished') {
-      this.downloader.destroy()
-      this.downloader = null
-    }
-    let list = await this.listLocalAsync()
-    if (!list.find(x => x === version)) {
-      throw new Error('given version not found or not downloaded')
-    }
-    if (this.upgrading)
-      throw new Error('upgrading')
-    this.upgrading = true
-    try {
-      const tmpvol = path.join(Config.storage.roots.vols, TMPVOL)
-      rimraf.sync(tmpvol)
-      await child.execAsync(`btrfs subvolume create ${ tmpvol }`)
-      await child.execAsync(`tar xf ${ path.join(this.dir, version) } -C ${ tmpvol } --zstd`)
-      await fs.writeFileAsync(path.join(tmpvol, 'etc', 'version'), version)
-      const roUUID = UUID.v4()
-      await child.execAsync(`btrfs subvolume snapshot ${tmpvol} ${ path.join(Config.storage.roots.vols, roUUID) }`)
-      rimraf.sync(tmpvol)
-      await child.execAsync(`cowroot-checkout -m ro ${roUUID}`)
-    } finally {
-      this.upgrading = false
-    }
-  }
-
   upgrade(version, callback) {
-    this.upgradeAsync(version)
-      .then(x => {
-        callback(null)
-        child.exec('sleep 2; reboot')
-      })
-      .catch(e => callback(e))
+    this.state.upgrade(version, callback)
   }
 
   confirm(callback) {
@@ -175,10 +204,18 @@ class Upgrade extends event {
 
   view() {
     return {
+      state: this.state.name,
+      error: this.state.error,
+      version: this.state.version,
       fetch: this.fetcher && this.fetcher.view(),
       download: this.downloader && this.downloader.view()
     }
   }
 }
+
+Upgrade.prototype.Upgrading = Upgrading
+Upgrade.prototype.Finished = Finished
+Upgrade.prototype.Failed = Failed
+Upgrade.prototype.Pending = Pending
 
 module.exports = Upgrade
