@@ -1,4 +1,5 @@
 const Router = require('express').Router
+const child = require('child_process')
 
 module.exports = (appService) =>{
   const router = new Router()
@@ -53,6 +54,24 @@ module.exports = (appService) =>{
       res.success(data)
     })
   })
+
+  // timedatectl
+  router.get('/timedate', (req, res) => child.exec('timedatectl', (err, stdout, stderr) => {
+    if (err || stderr) {
+      res.status(500).json({code: err.code, message: err.message})
+    } else {
+      let timedate = stdout
+        .toString()
+        .split('\n')
+        .filter(l => l.length)
+        .reduce((prev, curr) => {
+          let pair = curr.split(': ').map(str => str.trim())
+          prev[pair[0]] = pair[1]
+          return prev
+        }, {})
+      res.status(200).json(timedate)
+    }
+  }))
   
   return router
 }
