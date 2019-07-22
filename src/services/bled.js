@@ -22,8 +22,6 @@ class BLED extends require('events') {
     super()
     this.ctx = ctx
     this.dbus = new DBus()
-    
-    // TODO:  dbus disconnect??? connect failed??
     this.dbus.on('connect', () => {
       this.ble = new Bluetooth(ctx.userStore && ctx.userStore.data || false, ctx.deviceSN)
       this.dbus.attach('/org/bluez/bluetooth', this.ble)
@@ -65,6 +63,7 @@ class BLED extends require('events') {
       this._ble.removeAllListeners()
     }
     this._ble = x
+    if (!x) return
     this._ble.on('Service1Write', this.handleBleMessage.bind(this, 'Service1Write')) // LocalAuth
     this._ble.on('Service2Write', this.handleBleMessage.bind(this, 'Service2Write')) // NetSetting
     this._ble.on('Service3Write', this.handleBleMessage.bind(this, 'Service3Write')) // Cloud
@@ -79,6 +78,7 @@ class BLED extends require('events') {
   set nm(x) {
     if (this._nm) this._nm.removeAllListeners()
     this._nm = x
+    if (!x) return
     x.on('NM_DeviceChanged', (...args) => this.emit('NM_DeviceChanged', ...args))
     x.on('NM_StateChanged', (...args) => this.emit('NM_StateChanged', ...args))
     x.on('NM_ST_ConnectionChanged', (...args) => this.emit('NM_ST_ConnectionChanged', ...args))

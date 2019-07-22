@@ -95,7 +95,7 @@ class Bluetooth extends DBusObject {
     let s = sn ? sn.slice(-8) : ''
     this.adv.updateAdv({
       Type: 'peripheral',
-      LocalName: 'Wisnuc-' + s,
+      LocalName: 'winas-' + s,
       ManufacturerData: [
         [0xffff, ['ay', [b]]]
       ],
