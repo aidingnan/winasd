@@ -48,7 +48,7 @@ const ObjectIdentifier = str => TLV(0x06,
 
 const ContentInfo = buf => TLV(0xa0, buf)
 
-const CertificationRequestInfo = (o, cn, key) =>
+const CertificationRequestInfo = (o, cn, serialNumber, key) =>
   Sequence(
     Integer(Buffer.alloc(1)),
     Sequence(
@@ -59,7 +59,11 @@ const CertificationRequestInfo = (o, cn, key) =>
       Set(
         Sequence(
           ObjectIdentifier('2.5.4.3'),
-          UTF8String(cn)))),
+          UTF8String(cn))),
+      Set(
+        Sequence(
+          ObjectIdentifier('2.5.4.5'),
+          UTF8String(serialNumber)))),
     Sequence(
       Sequence(
         ObjectIdentifier('1.2.840.10045.2.1'),

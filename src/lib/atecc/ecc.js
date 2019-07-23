@@ -208,17 +208,19 @@ class ECC {
   async generateCsrAsync (opts) {
     if (typeof opts !== 'object' || !opts) throw new Error('bad option')
 
-    let { o, cn, slot } = opts
+    let { o, cn, slot, serialNumber } = opts
     if (typeof o !== 'string' || !o.length || o.length > 64) {
       throw new Error('bad o name')
     } else if (typeof cn !== 'string' || !cn.length || cn.length > 64) {
       throw new Error('bad cn name')
+    } else if (typeof serialNumber !== 'string' || !serialNumber.length) {
+      throw new Error('bad serial number')
     }
 
     if (![0, 6, 7].includes(slot)) slot = 0
 
     let key = this.keys[slot]
-    let cri = CertificationRequestInfo(o, cn, key)
+    let cri = CertificationRequestInfo(o, cn, serialNumber, key)
     let digest = createHash('sha256').update(cri).digest()
     let sig = await this.signAsync(slot, digest)
     if (sig.length !== 64) throw new Error('bad signature')

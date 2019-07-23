@@ -90,7 +90,8 @@ class PreBuild extends State {
   createCsr(callback) {
     mkdirp(certFolder, err => {      
       if (err) return callback(err)
-      this.ctx.ctx.ecc.genCsr({ o: 'wisnuc', cn: 'xxoxxo'}, (err, der) => {
+      if (!this.ctx.ctx.deviceSN || !this.ctx.ctx.deviceSN.length) return callback(new Error('device sn not found'))
+      this.ctx.ctx.ecc.genCsr({ o: 'Shanghai Dingnan Co., Ltd.', cn: 'xxoxxo', serialNumber:this.ctx.ctx.deviceSN }, (err, der) => {
         if (err) return callback(err)
         let pem = '-----BEGIN CERTIFICATE REQUEST-----\n'
               + der.toString('base64') + '\n'
