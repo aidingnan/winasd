@@ -325,17 +325,7 @@ class Channel extends require('events') {
         return this.reqCommand(data, e)
       }
       if (data.urlPath.startsWith('/winasd')) {
-        let { urlPath, verb, body, params, headers } = data
-        let bodym = Object.assign({}, body, params)
-        if (urlPath === '/winasd/info') {
-          return this.reqCommand(data, null, this.ctx.view())
-        }
-        else if (urlPath === '/winasd/device') {
-          return this.ctx.updateDeviceName(null, bodym.name, err => 
-            this.reqCommand(data, err, {}))
-        } else {
-          return this.reqCommand(data, formatError('not found'))
-        }
+        return this.handleWinasdPipeMessage(data)
       } else
         this.ctx.winas && this.ctx.winas.sendMessage({ type: 'pipe', data })
     } else if (topic.endsWith('users')) {
@@ -344,6 +334,24 @@ class Channel extends require('events') {
       this.ctx.token = data.token
     } else {
       console.log('miss message: ', topic, data)
+    }
+  }
+
+  // handle winasd pipe method call
+  handleWinasdPipeMessage(message) {
+    let { urlPath, verb, body, params, headers } = message
+    let bodym = Object.assign({}, body, params)
+    if (urlPath === '/winasd/info') {
+      return this.reqCommand(message, null, this.ctx.view())
+    } else if (urlPath === '/winasd/device') {
+      return this.ctx.updateDeviceName(null, bodym.name, err => 
+        this.reqCommand(message, err, {}))
+    } else if (urlPath === '/winasd/upgrade' && verb === 'GET') {
+      return this.ctx.upgrade.listAll((err, data) => this.reqCommand(message, err, data))
+    } else if (urlPath === '/winasd/upgrade' && verb === 'POST') {
+      return this.ctx.upgrade.upgrade(bodym.version, err => this.reqCommand(message, err, {}))
+    }else {
+      return this.reqCommand(message, formatError('not found'))
     }
   }
 
@@ -358,7 +366,6 @@ class Channel extends require('events') {
     if (isFetch) uri += '/pipe/fetch'
     else if (isStore) uri += '/pipe/store'
     else uri += '/json'
-    debug(uri)
     return request({
       uri: uri,
       method: 'POST',

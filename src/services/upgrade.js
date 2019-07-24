@@ -2,7 +2,7 @@
  * @Author: JackYang
  * @Date: 2019-07-08 14:06:53  
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-07-19 16:08:40
+ * @Last Modified time: 2019-07-24 14:24:01
  * 
  */
 
@@ -49,12 +49,11 @@ class Upgrading extends Base {
   enter(version, callback) {
     this.version = version
     this.upgradeAsync(version)
-      .then(x => {
-        process.nextTick(() => callback(null))
-        this.setState("Finished")
-      })
+      .then(x => 
+        this.setState("Finished"))
       .catch(e => 
-        (process.nextTick(() => callback(e)), this.setState("Failed")))
+        this.setState("Failed"))
+    process.nextTick(() => callback(null)) // it`s take long times, so early callback, then polling state
   }
 
   async upgradeAsync(version) {
@@ -80,7 +79,7 @@ class Upgrading extends Base {
   }
 
   upgrade(version, callback) {
-    callback(new Error('race'))
+    callback(Object.assign(new Error('race'), { status: 400, code:'ERACE' }))
   }
 }
 
@@ -93,7 +92,7 @@ class Finished extends Base {
 class Failed extends Base {
   enter(version, e) {
     this.version = version
-    this.error = error
+    this.error = e
   }
 }
 
