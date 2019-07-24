@@ -1,5 +1,8 @@
 const debug = require('debug')('ws:net')
 
+const DBus = require('../woodstock/lib/dbus')
+const { STRING } = require('../woodstock/lib/dbus-types')
+const NM = require('../woodstock/nm/NetworkManager')
 /*
   NetworkManager State
   NM_STATE_UNKNOWN = 0 
@@ -16,32 +19,51 @@ class NetWorkManager extends require('events') {
   constructor(ctx) {
     super()
     this.ctx = ctx
-    this.ctx.bled.on('NM_DeviceChanged', (...args) => this.emit('NM_DeviceChanged', ...args))
-    this.ctx.bled.on('NM_StateChanged', (...args) => (this.emit('NM_StateChanged', ...args), this.handleStateChanged(...args)))
-    this.ctx.bled.on('NM_ST_ConnectionChanged', (...args) => (this.emit('NM_ST_ConnectionChanged', ...args), this.handleConnectionChanaged(...args)))
-    this.ctx.bled.on('NM_AP_AccessPointAdded', (...args) => this.emit('NM_AP_AccessPointAdded', ...args))
-    this.ctx.bled.on('NM_AP_AccessPointRemoved', (...args) => this.emit('NM_AP_AccessPointRemoved', ...args))
-    this.initState()
+    this.dbus = new DBus()
+    this.dbus.on('connect', () => {
+      this.nm = new NM()
+      this.dbus.attach('/org/freedesktop/NetworkManager', this.nm)
+      this.initState()
+    })
+  }
+
+  set nm(x) {
+    if (this._nm) this._nm.removeAllListeners()
+    this._nm = x
+    if (!x) return
+    x.on('NM_DeviceChanged', (...args) => this.emit('NM_DeviceChanged', ...args))
+    x.on('NM_StateChanged', (...args) => (this.emit('NM_StateChanged', ...args), this.handleStateChanged(...args)))
+    x.on('NM_ST_ConnectionChanged', (...args) => (this.emit('NM_ST_ConnectionChanged', ...args), this.handleConnectionChanaged(...args)))
+    x.on('NM_AP_AccessPointAdded', (...args) => this.emit('NM_AP_AccessPointAdded', ...args))
+    x.on('NM_AP_AccessPointRemoved', (...args) => this.emit('NM_AP_AccessPointRemoved', ...args))
+  }
+
+  get nm() {
+    return this._nm
   }
 
   initState() {
-    this.ctx.bled.nm.State((err, data) => {
+    this.nm.State((err, data) => {
       this.emit('started', this.hasOwnProperty('state') ? this.state : err ? 0 : data) 
       if (this.hasOwnProperty('state')) return
       if (err) return setTimeout(() => this.initState(), 1000)
       this.state = data || 0
     })
-    this.ctx.bled.nm.addressDatas((err, data) => {
+    this.nm.addressDatas((err, data) => {
       if (data) this.addresses = data
     })
-    this.ctx.bled.nm.currentNetinfo((err, data) => {
+    this.nm.currentNetinfo((err, data) => {
       if (data) this.detail = data
     })
   }
 
   connect(ssid, pwd, callback) {
-    this.ctx.bled.nm ? this.ctx.bled.nm.connect(ssid, pwd, callback)
-      : callback(new Error('nm not started'))
+    this.nm ? this.nm.connect2(ssid, pwd, callback)
+      : callback(Object.assign(new Error('nm not started'), {code: 'ESTATE'}))
+  }
+
+  devices() {
+    return this.nm ? this.nm.devices : []
   }
 
   handleDeviceChanged() {
@@ -55,14 +77,16 @@ class NetWorkManager extends require('events') {
   handleStateChanged(state) {
     debug('handleStateChanged', state)
     this.state = state
-    if (state === 70) this.emit('connect')
-    // FIXME: race
-    this.ctx.bled.nm.addressDatas((err, data) => {
-      if (data) this.addresses = data
-    })
-    this.ctx.bled.nm.currentNetinfo((err, data) => {
-      if (data) this.detail = data
-    })
+    //FIXME: will race
+    if (state === 70) {
+      this.emit('connect')
+      this.nm.addressDatas((err, data) => {
+        if (data) this.addresses = data
+      })
+      this.nm.currentNetinfo((err, data) => {
+        if (data) this.detail = data
+      })
+    }
   }
 
   view() {

@@ -1,6 +1,5 @@
 const Bluetooth = require('../woodstock/winas/bluetooth')
 const DBus = require('../woodstock/lib/dbus')
-const NetWorkManager = require('../woodstock/nm/NetworkManager')
 const { STRING } = require('../woodstock/lib/dbus-types')
 const debug = require('debug')('ws:bled')
 
@@ -25,8 +24,6 @@ class BLED extends require('events') {
     this.dbus.on('connect', () => {
       this.ble = new Bluetooth(ctx.userStore && ctx.userStore.data || false, ctx.deviceSN)
       this.dbus.attach('/org/bluez/bluetooth', this.ble)
-      this.nm = new NetWorkManager()
-      this.dbus.attach('/org/freedesktop/NetworkManager', this.nm)
       this.emit('connect')
       this.initProperties()
     })
@@ -74,21 +71,6 @@ class BLED extends require('events') {
   }
 
   get ble() { return this._ble }
-
-  set nm(x) {
-    if (this._nm) this._nm.removeAllListeners()
-    this._nm = x
-    if (!x) return
-    x.on('NM_DeviceChanged', (...args) => this.emit('NM_DeviceChanged', ...args))
-    x.on('NM_StateChanged', (...args) => this.emit('NM_StateChanged', ...args))
-    x.on('NM_ST_ConnectionChanged', (...args) => this.emit('NM_ST_ConnectionChanged', ...args))
-    x.on('NM_AP_AccessPointAdded', (...args) => this.emit('NM_AP_AccessPointAdded', ...args))
-    x.on('NM_AP_AccessPointRemoved', (...args) => this.emit('NM_AP_AccessPointRemoved', ...args))
-  }
-
-  get nm() {
-    return this._nm
-  }
 
   // 处理来自某个ble service 的消息
   // service1 => localAuth service
@@ -138,7 +120,7 @@ class BLED extends require('events') {
     }
     if (packet.action === 'addAndActive') {
       if (this.ctx.localAuth.verify(packet.token)) {
-        this.nm.connect2(packet.body.ssid, packet.body.pwd, (err, data) => {
+        this.ctx.net.connect(packet.body.ssid, packet.body.pwd, (err, data) => {
           if (err) return this.update(type, { seq: packet.seq, error: err })
           return this.update(type, {seq: packet.seq, data})
         })
@@ -155,14 +137,14 @@ class BLED extends require('events') {
 
   handleNICChar1Write(type, packet) {
     if (packet.action === 'list') {
-      return this.update(type, {seq: packet.seq, data:{ devices:this.nm.devices }})
+      return this.update(type, {seq: packet.seq, data:{ devices:this.ctx.net.devices() }})
     }
   }
 
   // push model
   handleNICChar2Write(type, packet) {
     if (packet.action === 'list') {
-      return this.update(type, {seq: packet.seq, data:{ devices:this.nm.devices }})
+      return this.update(type, {seq: packet.seq, data:{ devices:this.ctx.net.devices() }})
     }
   }
 

@@ -82,9 +82,6 @@ class Prepare extends BaseState {
   }
 
   async initPersistenceAsync() {
-    // FIXME: check if already mounted
-    // await mkdirpAsync(Config.storage.roots.p)
-    // await child.execAsync(`mount -U ${Config.storage.uuids.p} ${Config.storage.roots.p}`)
     await rimrafAsync(Config.storage.dirs.tmpDir)
     await mkdirpAsync(Config.storage.dirs.tmpDir)
     await mkdirpAsync(Config.storage.dirs.isoDir)
@@ -121,9 +118,7 @@ class Prepare extends BaseState {
         ecc.preset(e => {
           if (e) return this.setState('Failed', EECCPRESET)
           this.ctx.ecc = ecc
-          this.loadDevice((err, {
-            sn
-          }) => { // provision need
+          this.loadDevice((err, { sn }) => { // provision need
             if (err) return this.setState('Failed', EDEVICE)
             this.ctx.deviceSN = sn
             this.startupWithoutEcc()
@@ -187,23 +182,23 @@ class Provisioning extends BaseState {
   enter() {
     console.log('run in provision state')
     this.ctx.bled = new Bled(this.ctx)
-    this.ctx.bled.on('connect', () => {
-      this.ctx.net = new NetworkManager(this.ctx)
-      this.ctx.net.on('started', state => {
-        // if (state !== 70) {
+    this.ctx.bled.on('connect', () => {})
+
+    this.ctx.net = new NetworkManager(this.ctx)
+    this.ctx.net.on('started', state => {
+      if (state !== 70) {
         this.ctx.net.connect('Xiaomi_123', 'wisnuc123456', (err, data) => {
           console.log('Net Module Connect: ', err, data)
         })
-        // }
-      })
-      this.ctx.net.once('connect', () => {
-        this.ctx.provision = new Provision(this.ctx)
-        this.ctx.provision.on('Finished', () => {
-          this.ctx.provision.removeAllListeners()
-          this.ctx.provision.destroy()
-          this.ctx.provision = undefined
-          console.log('*** Provision finished, need reboot ***')
-        })
+      }
+    })
+    this.ctx.net.once('connect', () => {
+      this.ctx.provision = new Provision(this.ctx)
+      this.ctx.provision.on('Finished', () => {
+        this.ctx.provision.removeAllListeners()
+        this.ctx.provision.destroy()
+        this.ctx.provision = undefined
+        console.log('*** Provision finished, need reboot ***')
       })
     })
   }
@@ -215,17 +210,19 @@ class Starting extends BaseState {
     this.ctx.localAuth = new LocalAuth(this.ctx)
     this.ctx.bled = new Bled(this.ctx)
     this.ctx.bled.on('connect', () => {
-      this.ctx.net = new NetworkManager(this.ctx)
-      this.ctx.net.on('started', state => {
-        console.log('NetworkManager Started: ', state)
-        if (state !== 70) {
-          console.log('Device Network Disconnect', state)
-        }
-      })
-      this.ctx.net.on('connect', () => {
-        process.nextTick(() => this.ctx.channel && this.ctx.channel.connect())
-      })
     })
+    
+    this.ctx.net = new NetworkManager(this.ctx)
+    this.ctx.net.on('started', state => {
+      console.log('NetworkManager Started: ', state)
+      if (state !== 70) {
+        console.log('Device Network Disconnect', state)
+      }
+    })
+    this.ctx.net.on('connect', () => {
+      process.nextTick(() => this.ctx.channel && this.ctx.channel.connect())
+    })
+
     this.ctx.bled.on('BLE_DEVICE_DISCONNECTED', () => {
       if (this.ctx.localAuth) {
         try {
@@ -238,6 +235,7 @@ class Starting extends BaseState {
         }
       }
     }) // stop localAuth
+    
     if (this.ctx.userStore.data) {
       this.setState('Bound')
     } else {
