@@ -38,6 +38,7 @@ module.exports = (appService) =>{
   router.post('/bind', (req, res, next) => {
     if (!req.body.encrypted) return res.status(400).end()
     appService.requestBind(req.body.encrypted, (err, data) => {
+      console.log(err)
       if (err) return res.error(err)
       res.success(data)
     })
@@ -50,6 +51,7 @@ module.exports = (appService) =>{
     // verify localAuth token
     if (!appService.localAuth || !appService.localAuth.verify(req.body.authToken)) return res.status(400).json( { code: 'EAUTH' })
     appService.requestUnbind(req.body.encrypted, (err, data) => {
+      console.log(err)
       if (err) return res.error(err)
       res.success(data)
     })

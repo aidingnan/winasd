@@ -65,10 +65,12 @@ class LocalAuth {
   // check auth result
   auth(data, callback) {
     if (this.state !== 'Working')
-      return callback(Object.assign(new Error('error state'), { code: 'ESTATE'}))
+      return callback(Object.assign(new Error('error state'), { code: 'ESTATE', status: 400 }))
+    // stop auth state
+    this.stop()
     // check data maybe led colors
     if (!data.color || !deepEqual(data.color, this.args)) 
-      return callback(Object.assign(new Error('color error'), { code: 'ECOLOR'}))
+      return callback(Object.assign(new Error('color error'), { code: 'ECOLOR', status: 400}))
     // create token
     let cipher = crypto.createCipher('aes128', this.secret)
     let token = cipher.update(JSON.stringify({
@@ -76,7 +78,6 @@ class LocalAuth {
       ctime: new Date().getTime()
     }), 'utf8', 'hex')
     token += cipher.final('hex')
-    this.stop()
 
     process.nextTick(() => callback(null, { token }))
   }
