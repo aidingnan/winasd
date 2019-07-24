@@ -2,10 +2,16 @@
  * @Author: Harry
  * @Date: 2019-07-08 11:14:28
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-07-08 11:41:07
+ * @Last Modified time: 2019-07-24 17:58:37
  */
 
 const i2c = require('i2c-bus')
+
+const COLOR_GROUP = {
+  normal: ['#00ff00', 'alwaysOn'],
+  unbound: ['#0000ff', 'breath'],
+  error: ['#ff0000', 'breath']
+}
 
 class State {
   constructor(ctx, ...args) {
@@ -236,6 +242,18 @@ class LEDControl extends require('events') {
       state: this.state.constructor.name
     }
   }
+
+  /** JackYang Add */
+  runGroup(group) {
+    if (!group) return
+    let args = COLOR_GROUP[group]
+    if (!args) return
+    try {
+      this.run(...args)
+    } catch(e) {
+      console.log('led rungroup error')
+    }
+  }
 }
 
 function convertColor(color) {
@@ -251,5 +269,7 @@ function convertColor(color) {
 function parseHex(number) {
   return parseInt(number, 16)
 }
+
+LEDControl.prototype.COLOR_GROUP = COLOR_GROUP
 
 module.exports = LEDControl

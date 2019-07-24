@@ -225,14 +225,8 @@ class Starting extends BaseState {
 
     this.ctx.bled.on('BLE_DEVICE_DISCONNECTED', () => {
       if (this.ctx.localAuth) {
-        try {
-          this.ctx.localAuth.stop()
-          this.ctx.state.constructor.name === 'Bound' ?
-            this.ctx.ledService.run('#00ff00', 'alwaysOn') :
-            this.ctx.ledService.run('#0000ff', 'breath')
-        } catch (e) {
-          console.log('LED SERVICE FAILED')
-        }
+        let bound = this.ctx.state.constructor.name === 'Bound'
+        this.ctx.ledService.runGroup(bound ? 'normal' : 'unbound')
       }
     }) // stop localAuth
     
@@ -254,11 +248,7 @@ class Starting extends BaseState {
 class Unbind extends BaseState {
   enter() {
     this.ctx.channel = new Channel(this.ctx)
-    try {
-      this.ctx.ledService.run('#0000ff', 'breath')
-    } catch (e) {
-      console.log('LedService RUN error: ', e)
-    }
+    this.ctx.ledService.runGroup('unbound')
     this.ctx.channel.once('ChannelConnected', (device, user) => {
       if (user) { // mismatch
         console.log('****** cloud device bind state mismatch, check signature *****')
@@ -393,11 +383,7 @@ class Unbinding extends BaseState {
  */
 class Bound extends BaseState {
   enter() {
-    try {
-      this.ctx.ledService.run('#00ff00', 'alwaysOn')
-    } catch (e) {
-      console.log('LedService RUN error: ', e)
-    }
+    this.ctx.ledService.runGroup('normal')
     this.ctx.channel = new Channel(this.ctx)
     this.ctx.channel.on('ChannelConnected', (device, user) => {
       if (!user) {
@@ -450,7 +436,7 @@ class Failed extends BaseState {
     this.reason = reason
     console.log(reason)
     try {
-      this.ctx.ledService.run('#ff0000', 'breath')
+      this.ctx.ledService.runGroup('error')
     } catch (e) {
       console.log('LedService RUN error: ', e)
     }
