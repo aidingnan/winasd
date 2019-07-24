@@ -14,8 +14,11 @@ module.exports =(req, res, next) => {
     res.status(200).json(data)
   }
 
-  res.error = (error) => {
+  res.error = (error, status) => {
     clean()
+    if (status) {
+      return res.status(status).json(error)
+    }
     if (error.status) {
       return res.status(error.status).json(error)
     }

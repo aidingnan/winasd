@@ -14,14 +14,6 @@ app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
 app.use(resMiddware)
 app.get('/', (req, res) => res.status(200).send('Welcome to winasd'))
-app.use('/upgrade', require('./routes/upgrade')(appService))
-app.post('/bind', (req, res, next) => {
-  if (!req.body.encrypted) return res.status(400).end()
-  appService.boundDevice(req.body.encrypted, (err, data) => {
-    if (err) return res.status(400).json(err)
-    res.success(data)
-  })
-})
 
 app.get('/info', (req, res, next) => res.success(appService.view()))
 app.use('/winasd', require('./routes/winasd')(appService))
@@ -55,7 +47,7 @@ app.listen(3001, err => {
 })
 
 /**
- * argv:
+ * argv: not implement
  *  --withoutWinas: start winasd  without winas
  *  --withoutEcc: start winasd without ecc, use openssl
  */

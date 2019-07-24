@@ -12,6 +12,7 @@ module.exports = (appService) =>{
   // update device name
   router.post('/device', (req, res, next) => {
     let { name } = req.body
+    if (typeof name !== 'string' || !name.length) return res.error(new Error('invald name'), 400)
     appService.updateDeviceName(req.user, name, err => 
       err ? res.error(err) : res.success())
   })
@@ -36,7 +37,7 @@ module.exports = (appService) =>{
 
   // request bind device
   router.post('/bind', (req, res, next) => {
-    if (!req.body.encrypted) return res.status(400).end()
+    if (!req.body.encrypted) return res.error(new Error('invaild encrypted'), 400)
     appService.requestBind(req.body.encrypted, (err, data) => {
       console.log(err)
       if (err) return res.error(err)

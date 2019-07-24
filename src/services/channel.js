@@ -322,7 +322,7 @@ class Channel extends require('events') {
       try{
         this.checkMessage(data)
       } catch(e) {
-        return this.reqCommand(data, e)
+        return this.reqCommand(data, Object.assign(e, { status: 400 }))
       }
       if (data.urlPath.startsWith('/winasd')) {
         return this.handleWinasdPipeMessage(data)
@@ -339,8 +339,16 @@ class Channel extends require('events') {
 
   // handle winasd pipe method call
   handleWinasdPipeMessage(message) {
-    let { urlPath, verb, body, params, headers } = message
+    let { urlPath, verb, body, params, user } = message
     let bodym = Object.assign({}, body, params)
+    
+    // invalid user
+    if (!user ||
+      !user.id ||
+      !this.state.user ||
+      user.id !== this.state.user.id)
+      return this.reqCommand(message, Object.assign(new Error(`user ${user} not found`), { status: 401 }))
+
     if (urlPath === '/winasd/info') {
       return this.reqCommand(message, null, this.ctx.view())
     } else if (urlPath === '/winasd/device') {
