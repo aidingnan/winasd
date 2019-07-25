@@ -2,15 +2,16 @@
  * @Author: Harry
  * @Date: 2019-07-08 11:14:28
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-07-24 17:58:37
+ * @Last Modified time: 2019-07-25 17:15:40
  */
 
 const i2c = require('i2c-bus')
 
 const COLOR_GROUP = {
   normal: ['#00ff00', 'alwaysOn'],
-  unbound: ['#0000ff', 'breath'],
-  error: ['#ff0000', 'breath']
+  unbind: ['#0000ff', 'breath'],
+  error: ['#ff0000', 'breath'],
+  working: ['#00ff00', 'breath']
 }
 
 class State {

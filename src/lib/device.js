@@ -12,25 +12,31 @@ const deviceNameP = path.join(Config.storage.dirs.device, Config.storage.files.d
 // default device name
 const DEVICE_NAME = 'PocketDrive'
 
-const networkInterface = () => {
+/**
+ * return ip for given type, type contain in `['lanip', 'linklocal']`
+ * @param {string} type - `lanip/linklocal`
+ */
+const NetworkAddr = (type) => {
   let interfaces = os.networkInterfaces()
     
-  let keys = Object.keys(interfaces).filter(k => !!k && k !== 'lo')
+  let keys = Object.keys(interfaces).filter(k => !!k && k !== 'lo'&& interfaces[k].length)
   if (!keys.length) return 
 
-  let key = keys.find(k => Array.isArray(interfaces[k]) && interfaces[k].length)
-  if (!key) return
-  let ipv4 = interfaces[key].find(x => x.family === 'IPv4')
-  ipv4.interfaceName = key
-  ipv4.speed = 1000 // FIXME:
-  try {
-    let inet = child.execSync(`iwconfig ${key} | grep ESSID`).toString().split('ESSID:"')
-    if (inet.length > 1) {
-      ipv4.essid = inet[1].split('" ').shift().trim()
+  if (type === 'lanip') {
+    for (let i = 0; i < keys.length; i++) {
+      let iface = interfaces[keys[i]].find(x => x.family === 'IPv4' && !x.address.startsWith('169.254'))
+      if (iface) {
+        return iface.address
+      }
     }
-  } catch(e) {}
-
-  return ipv4
+  } else if (type === 'linklocal') {
+    for (let i = 0; i < keys.length; i++) {
+      let iface = interfaces[keys[i]].find(x => x.family === 'IPv4' && x.address.startsWith('169.254'))
+      if (iface) {
+        return iface.address
+      }
+    }
+  }
 }
 
 const deviceName = () => {
@@ -94,7 +100,7 @@ const deviceSN = () => {
 }
 
 module.exports = {
-  networkInterface,
+  NetworkAddr,
   TMPFILE,
   setDeviceName,
   deviceName,

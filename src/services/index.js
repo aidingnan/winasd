@@ -225,8 +225,8 @@ class Starting extends BaseState {
 
     this.ctx.bled.on('BLE_DEVICE_DISCONNECTED', () => {
       if (this.ctx.localAuth) {
-        let bound = this.ctx.state.constructor.name === 'Bound'
-        this.ctx.ledService.runGroup(bound ? 'normal' : 'unbound')
+        let bound = this.ctx.state.name() === 'Bound'
+        this.ctx.ledService.runGroup(bound ? 'normal' : 'unbind')
       }
     }) // stop localAuth
     
@@ -241,14 +241,14 @@ class Starting extends BaseState {
 /**
  * start channel service, on ***ChannelConnected*** event
  * 
- * if cloud return someone bound this device, that means unbound state error.
+ * if cloud return someone bound this device, that means unbind state error.
  * 
  * maybe bound job had not finished. verify the signature, do bind if verifyed
  */
 class Unbind extends BaseState {
   enter() {
     this.ctx.channel = new Channel(this.ctx)
-    this.ctx.ledService.runGroup('unbound')
+    this.ctx.ledService.runGroup('unbind')
     this.ctx.channel.once('ChannelConnected', (device, user) => {
       if (user) { // mismatch
         console.log('****** cloud device bind state mismatch, check signature *****')
@@ -379,7 +379,7 @@ class Unbinding extends BaseState {
  * 
  * if cloud has no user bound this device, that means bound state error.
  * 
- * maybe unbound job had not finished. verify the signature, do unbound if verifyed
+ * maybe unbind job had not finished. verify the signature, do unbind if verifyed
  */
 class Bound extends BaseState {
   enter() {
@@ -435,11 +435,7 @@ class Failed extends BaseState {
   enter(reason) {
     this.reason = reason
     console.log(reason)
-    try {
-      this.ctx.ledService.runGroup('error')
-    } catch (e) {
-      console.log('LedService RUN error: ', e)
-    }
+    this.ctx.ledService.runGroup('error')
   }
 }
 
@@ -536,6 +532,13 @@ class AppService {
     return this.config.system.globalNode ? 'node' : '/usr/bin/node'
   }
 
+  colorGroup() {
+    return this.state.name() === 'Unbind' ? 'unbind'
+      : this.state.name() === 'Bound' ? 'normal'
+      : this.state.name() === 'Failed' ? 'error'
+      : 'working'
+  }
+
   // start winas
   appStart(callback) {
     if (!this.winas) return process.nextTick(() => callback(EApp404))
@@ -579,7 +582,8 @@ class AppService {
   // send mqtt message to cloud if device update
   deviceUpdate() {
     this.channel && this.deviceSN && this.channel.publish(`device/${ this.deviceSN }/info`, JSON.stringify({
-      lanIp: Device.networkInterface().address,
+      lanIp: Device.NetworkAddr('lanip'),
+      llip: Device.NetworkAddr('linklocal'),
       name: Device.deviceName()
     }))
   }
@@ -625,7 +629,7 @@ class AppService {
       }),
       led: this.ledService && this.ledService.view(),
       winasd: {
-        state: this.state.constructor.name,
+        state: this.state.name(),
         reason: this.state.reason // only exist in Failed state
       }
     }

@@ -3,7 +3,7 @@ const fs = require('fs')
 const path = require('path')
 const Config = require('config')
 const State = require('../lib/state')
-const { networkInterface, deviceName } = require('../lib/device')
+const { NetworkAddr, deviceName } = require('../lib/device')
 const debug = require('debug')('ws:channel')
 const request = require('request')
 const Client = require('../lib/mqttClient')
@@ -84,8 +84,9 @@ class Connecting extends Base {
 
     device.on('connect', () => {
       device.subscribe(`cloud/${ this.ctx.sn }/connected`)
-      device.publish(`device/${ this.ctx.sn }/info`, JSON.stringify({ 
-        lanIp: networkInterface().address,
+      device.publish(`device/${ this.ctx.sn }/info`, JSON.stringify({
+        lanIp: NetworkAddr('lanip'),
+        llip: NetworkAddr('linklocal'),
         name: deviceName()
       }))
     })
@@ -154,8 +155,9 @@ class Connecting extends Base {
 
     device.on('connect', () => {
       device.subscribe(`cloud/${ this.ctx.sn }/connected`)
-      device.publish(`device/${ this.ctx.sn }/info`, JSON.stringify({ 
-        lanIp: networkInterface().address,
+      device.publish(`device/${ this.ctx.sn }/info`, JSON.stringify({
+        lanIp: NetworkAddr('lanip'),
+        llip: NetworkAddr('linklocal'),
         name: deviceName()
       }))
     })

@@ -56,9 +56,7 @@ class LocalAuth {
   stop() {
     if (this.state === 'Idle') return
     clearTimeout(this.timer)
-    try{
-      this.ctx.ledService.stop() //stop led, may throw error
-    } catch(e) {console.log('stop led error: ', e)}
+    this.ctx.ledService.runGroup(this.ctx.colorGroup())
     this.state = 'Idle'
   }
 
