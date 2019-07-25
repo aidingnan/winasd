@@ -348,8 +348,9 @@ class Channel extends require('events') {
       !this.state.user ||
       user.id !== this.state.user.id)
       return this.reqCommand(message, Object.assign(new Error(`user ${user} not found`), { status: 401 }))
-
-    if (urlPath === '/winasd/info') {
+    if (urlPath === '/winasd' && verb === 'PATCH') {
+      return this.ctx.PATCH(user, bodym, err => this.reqCommand(message, err, {}))
+    } else if (urlPath === '/winasd/info') {
       return this.reqCommand(message, null, this.ctx.view())
     } else if (urlPath === '/winasd/device') {
       return this.ctx.updateDeviceName(null, bodym.name, err => 

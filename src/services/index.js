@@ -592,6 +592,25 @@ class AppService {
     this.state.requestUnbind(...args)
   }
 
+  PATCH(user, props, callback) {
+    let op = props
+    if (!op || !['shutdown', 'reboot'].includes(op))
+      return process.nextTick(() => callback(Object.assign(new Error('invaild op'), { status: 400 })))
+    switch(op) {
+      case 'shutdown': {
+        setTimeout(() => {
+          child.exec('shutboot', () => {})
+        }, 2000)
+      }
+      case 'reboot':{
+        setTimeout(() => {
+          child.exec('reboot', () => {})
+        }, 2000)
+      }
+    }
+    return process.nextTick(() => callback(null))
+  }
+
   view() {
     return {
       net: this.net && this.net.view(),

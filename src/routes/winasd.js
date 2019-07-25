@@ -3,6 +3,13 @@ const child = require('child_process')
 
 module.exports = (appService) =>{
   const router = new Router()
+  // 关机重启api
+  router.patch('/', (req, res) => {
+    appService.PATCH(req.user, req.body, err => {
+      if (err) return res.error(err)
+      res.success()
+    })
+  })
   // get device info
   router.get('/info', (req, res, next) => {
     res.success(appService.view())
