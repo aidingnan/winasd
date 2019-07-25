@@ -86,7 +86,7 @@ class Connecting extends Base {
       device.subscribe(`cloud/${ this.ctx.sn }/connected`)
       device.publish(`device/${ this.ctx.sn }/info`, JSON.stringify({
         lanIp: NetworkAddr('lanip'),
-        llip: NetworkAddr('linklocal'),
+        llIp: NetworkAddr('linklocal'),
         name: deviceName()
       }))
     })
@@ -157,7 +157,7 @@ class Connecting extends Base {
       device.subscribe(`cloud/${ this.ctx.sn }/connected`)
       device.publish(`device/${ this.ctx.sn }/info`, JSON.stringify({
         lanIp: NetworkAddr('lanip'),
-        llip: NetworkAddr('linklocal'),
+        llIp: NetworkAddr('linklocal'),
         name: deviceName()
       }))
     })

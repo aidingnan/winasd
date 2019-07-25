@@ -583,7 +583,7 @@ class AppService {
   deviceUpdate() {
     this.channel && this.deviceSN && this.channel.publish(`device/${ this.deviceSN }/info`, JSON.stringify({
       lanIp: Device.NetworkAddr('lanip'),
-      llip: Device.NetworkAddr('linklocal'),
+      llIp: Device.NetworkAddr('linklocal'),
       name: Device.deviceName()
     }))
   }
