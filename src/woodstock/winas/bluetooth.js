@@ -20,7 +20,7 @@ class Bluetooth extends DBusObject {
     let s = sn ? sn.slice(-8) : ''
     this.adv = new Advertisement('advertisement0', {
       Type: 'peripheral',
-      LocalName: 'winas-' + s,
+      LocalName: 'pan-' + s,
       // ServiceUUIDs: ['LOCAL-AUTH', 'CLOUD'],
       // 1805 CTS
       // ServiceUUIDs: ['80000000-0182-406c-9221-0a6680bd0943'],
@@ -95,7 +95,7 @@ class Bluetooth extends DBusObject {
     let s = sn ? sn.slice(-8) : ''
     this.adv.updateAdv({
       Type: 'peripheral',
-      LocalName: 'winas-' + s,
+      LocalName: 'pan-' + s,
       ManufacturerData: [
         [0xffff, ['ay', [b]]]
       ],
