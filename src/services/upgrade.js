@@ -2,7 +2,7 @@
  * @Author: JackYang
  * @Date: 2019-07-08 14:06:53  
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-07-26 11:22:08
+ * @Last Modified time: 2019-07-26 15:51:31
  * 
  */
 
@@ -15,6 +15,7 @@ const child = Promise.promisifyAll(require('child_process'))
 const UUID = require('uuid')
 const mkdirp = require('mkdirp')
 const rimraf = require('rimraf')
+const rimrafAsync = Promise.promisify(rimraf)
 const Config = require('config')
 const debug = require('debug')('ws:upgrade')
 
@@ -68,13 +69,13 @@ class Upgrading extends Base {
       throw new Error('given version not found or not downloaded')
     }
     const tmpvol = path.join(Config.storage.roots.vols, TMPVOL)
-    rimraf.sync(tmpvol)
+    await rimrafAsync(tmpvol)
     await child.execAsync(`btrfs subvolume create ${ tmpvol }`)
     await child.execAsync(`tar xf ${ path.join(this.ctx.dir, version) } -C ${ tmpvol } --zstd`)
     await fs.writeFileAsync(path.join(tmpvol, 'etc', 'version'), version)
     const roUUID = UUID.v4()
     await child.execAsync(`btrfs subvolume snapshot ${tmpvol} ${ path.join(Config.storage.roots.vols, roUUID) }`)
-    rimraf.sync(tmpvol)
+    await rimrafAsync(tmpvol)
     await child.execAsync(`cowroot-checkout -m ro ${roUUID}`)
   }
 
@@ -186,11 +187,7 @@ class Upgrade extends event {
       if (err) return callback(err)
       data = data.sort((a, b) => a < b)
       if (data.length > 1) {// error case
-        data.slice(1).forEach(x => {
-          try {
-            rimraf.sync(path.join(this.dir, x))
-          } catch (e) {/* ignore */ }
-        })
+        data.slice(1).forEach(x => rimraf(path.join(this.dir, x), () => {}))
         data = [data[0]]
       }
       return callback(null, data)
