@@ -198,6 +198,7 @@ class Provisioning extends BaseState {
         this.ctx.provision.removeAllListeners()
         this.ctx.provision.destroy()
         this.ctx.provision = undefined
+        child.exec('sync', () => {})
         console.log('*** Provision finished, need reboot ***')
       })
     })
@@ -247,6 +248,7 @@ class Starting extends BaseState {
  */
 class Unbind extends BaseState {
   enter() {
+    child.exec('sync', () => {})
     this.ctx.channel = new Channel(this.ctx)
     this.ctx.ledService.runGroup('unbind')
     this.ctx.channel.once('ChannelConnected', (device, user) => {
@@ -386,6 +388,7 @@ class Unbinding extends BaseState {
  */
 class Bound extends BaseState {
   enter() {
+    child.exec('sync', () => {})
     this.ctx.ledService.runGroup('normal')
     this.ctx.channel = new Channel(this.ctx)
     this.ctx.channel.on('ChannelConnected', (device, user) => {
