@@ -269,10 +269,13 @@ class Unbind extends BaseState {
   // request to cloud, save userinfo if success
   requestBind(encrypted, callback) {
     if (this.bindingFlag) return process.nextTick(() => callback(new Error('allready in binding state')))
-    this.bindingFlag = true
     if (!this.ctx.token) return process.nextTick(() => callback(new Error('Winas Net Error')))
+    this.bindingFlag = true
     this.validateBlock(err => {
-      if (err) return callback(err)
+      if (err) {
+        this.bindingFlag = false
+        return callback(err)
+      }
       return reqBind(this.ctx.ecc, encrypted, this.ctx.token, (err, data) => {
         if (err) {
           this.bindingFlag = false
@@ -317,11 +320,11 @@ class Binding extends BaseState {
   enter(user, callback = () => {}) {
     this.start(user)
       .then(() => (process.nextTick(() => callback(null, user)), this.setState('Bound')))
-      .catch(e => (process.nextTick(() => callback(Object.assign(new Error('clean drive failed'), {
-        code: 'EBINDING'
-      }))), this.setState('Failed', Object.assign(e, {
-        code: 'EBINDING'
-      }))))
+      .catch(e => {
+        process.nextTick(() => 
+          callback(Object.assign(new Error('clean drive failed'), { code: 'EBINDING' })))
+        this.setState('Failed', Object.assign(e, { code: 'EBINDING' }))
+      })
   }
 
   async start(user) {
@@ -416,7 +419,10 @@ class Bound extends BaseState {
     if (!this.ctx.token) return callback(new Error('network error'))
     this.unbindFlag = true
     reqUnbind(this.ctx.ecc, encrypted, this.ctx.token, (err, data) => {
-      if (err) return callback(err)
+      if (err) {
+        this.unbindFlag = false
+        return callback(err)
+      }
       process.nextTick(() => callback(null, null))
       this.setState('Unbinding')
     })
