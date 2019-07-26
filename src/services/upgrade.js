@@ -2,7 +2,7 @@
  * @Author: JackYang
  * @Date: 2019-07-08 14:06:53  
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-07-24 14:24:01
+ * @Last Modified time: 2019-07-26 11:22:08
  * 
  */
 
@@ -153,7 +153,7 @@ class Upgrade extends event {
     if (docs.length) {
       let latest = docs[0]
       if (isHighVersion(this.currentVersion, latest.tag)) {
-        if (!this.downloader || isHighVersion(this.downloader.version, latest.tag))
+        if (!this.downloader || isHighVersion(this.downloader.version, latest.tag) || this.downloader.status === 'Failed')
           this.downloader = new Download(latest, this.tmpDir, this.dir)
         else
           debug('downloader already start')

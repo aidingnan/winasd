@@ -597,7 +597,7 @@ class AppService {
   }
 
   PATCH(user, props, callback) {
-    let op = props
+    let op = props.op
     if (!op || !['shutdown', 'reboot'].includes(op))
       return process.nextTick(() => callback(Object.assign(new Error('invaild op'), { status: 400 })))
     switch(op) {

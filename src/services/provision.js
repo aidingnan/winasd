@@ -91,7 +91,7 @@ class PreBuild extends State {
     mkdirp(certFolder, err => {      
       if (err) return callback(err)
       if (!this.ctx.ctx.deviceSN || !this.ctx.ctx.deviceSN.length) return callback(new Error('device sn not found'))
-      this.ctx.ctx.ecc.genCsr({ o: 'Shanghai Dingnan Co., Ltd.', cn: 'xxoxxo', serialNumber:this.ctx.ctx.deviceSN }, (err, der) => {
+      this.ctx.ctx.ecc.genCsr({ o: 'Shanghai Dingnan Co., Ltd.', cn: 'xxoxxo', serialNumber:this.ctx.ctx.deviceSN, ou:'000000' }, (err, der) => {
         if (err) return callback(err)
         let pem = '-----BEGIN CERTIFICATE REQUEST-----\n'
               + der.toString('base64') + '\n'
