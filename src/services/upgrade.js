@@ -2,7 +2,7 @@
  * @Author: JackYang
  * @Date: 2019-07-08 14:06:53  
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-07-26 15:51:31
+ * @Last Modified time: 2019-07-26 16:48:27
  * 
  */
 
@@ -14,6 +14,7 @@ const child = Promise.promisifyAll(require('child_process'))
 
 const UUID = require('uuid')
 const mkdirp = require('mkdirp')
+const mkdirpAsync = Promise.promisify(mkdirp)
 const rimraf = require('rimraf')
 const rimrafAsync = Promise.promisify(rimraf)
 const Config = require('config')
@@ -71,6 +72,12 @@ class Upgrading extends Base {
     const tmpvol = path.join(Config.storage.roots.vols, TMPVOL)
     await rimrafAsync(tmpvol)
     await child.execAsync(`btrfs subvolume create ${ tmpvol }`)
+    const dirs = ['bin', 'etc', 'lib', 'root', 'sbin', 'usr', 'var']
+    for (let i = 0; i < dirs.length; i++) {
+      let p = path.join(tmpvol, dirs[i])
+      await mkdirpAsync(p)
+      await child.execAsync(`chattr +c ${p}`)
+    }
     await child.execAsync(`tar xf ${ path.join(this.ctx.dir, version) } -C ${ tmpvol } --zstd`)
     await fs.writeFileAsync(path.join(tmpvol, 'etc', 'version'), version)
     const roUUID = UUID.v4()
