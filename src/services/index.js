@@ -161,7 +161,7 @@ class Prepare extends BaseState {
   // read SN...
   loadDevice(callback) {
     if (Config.system.withoutEcc) {
-      fs.readFile(path.join(Config.storage.dirs.certDir, 'deviceSN'), (err, data) => {
+      fs.readFile(path.join(Config.storage.dirs.device, 'deviceSN'), (err, data) => {
         if (err) return callback(err)
         return callback(null, {
           sn: data.toString().trim()
@@ -633,7 +633,7 @@ class AppService {
       winas: this.winas && this.winas.view(),
       provision: this.provision && this.provision.view(),
       channel: this.channel && this.channel.view(),
-      device: Object.assign(Device.hardwareInfo(), {
+      device: Object.assign(Device.deviceInfo(), {
         sn: this.deviceSN
       }),
       led: this.ledService && this.ledService.view(),

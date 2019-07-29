@@ -35,7 +35,8 @@
       "provision": "provisioned",
       "boundUser": "boundUser.json",
       "deviceName": "deviceName",
-      "lifecycle": "lifecycle"
+      "lifecycle": "lifecycle",
+      "deviceSN": "deviceSN"
     }
   },
   "provision": {

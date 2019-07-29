@@ -18,6 +18,7 @@ const provisionConf = Config.get('provision')
 const iotConf = Config.get('iot')
 
 const certFolder = storageConf.dirs.certDir
+const deviceFolder = storageConf.dirs.device
 const crtName = storageConf.files.cert
 const csrName = storageConf.files.csr
 const pkeyName = 'device.key'
@@ -71,7 +72,7 @@ class PreBuild extends State {
               child.execSync(`openssl rsa -in ${ path.join(certFolder, pkeyName)} -pubout > ${ path.join(certFolder, pubKName)}`)
               child.execSync(`openssl req -new -subj "/C=CN/CN=abc/O=wisnuc" -key ${ path.join(certFolder, pkeyName)} > ${ path.join(certFolder, csrName)}`)
               this.ctx.sn = deviceSN()
-              fs.writeFileSync(path.join(certFolder, snName), this.ctx.sn)
+              fs.writeFileSync(path.join(deviceFolder, snName), this.ctx.sn)
               fs.writeFileSync(path.join(certFolder, caName), awsCA_RSA)
             }
             catch(e) {
@@ -102,7 +103,7 @@ class PreBuild extends State {
           fs.writeFileSync(path.join(certFolder, csrName), pem)
           fs.writeFileSync(path.join(certFolder, caName), awsCA)
           this.ctx.sn = this.ctx.ctx.deviceSN // test / release mode switch
-          fs.writeFileSync(path.join(certFolder, snName), this.ctx.sn)
+          fs.writeFileSync(path.join(deviceFolder, snName), this.ctx.sn)
           return callback(null)
         } catch(e) {
           return callback(e)

@@ -63,19 +63,38 @@ const setDeviceName = (name, callback) => {
   })
 }
 
-const hardwareInfo = () => {
+const deviceInfo = () => {
   return {
-    ecc: 'microchip',
     sn: deviceSN(),
-    fingerprint: 'ea3e82ef-8c44-4771-a696-2dd432203345',
-    cert: 'f0af3d0c-cea3-401e-9f3a-513d25717c16',
-    signer: 'Wisnuc Inc.',
-    notBefore: 1543561560133,
-    notAfter: 1859180920786,
-    bleAddr: 'XXXX:XXXX:XXXX:XXX',
+    usn: DeviceUSN(),
+    version: SoftwareVersion(),
     name: deviceName(),
     model: deviceModel()
   }
+}
+
+const deviceSN = () => {
+  let deviceSN 
+  try {
+    deviceSN = fs.readFileSync(path.join(Config.storage.dirs.device, 'deviceSN')).toString().trim()
+  } catch(e){
+    console.log('*****\ndeviceSN not found\n*****\n')
+  }
+  return deviceSN
+}
+
+const deviceUSN = () => {
+
+}
+
+const SoftwareVersion = () => {
+  let currentVersion = '0.0.0'
+  try {
+    currentVersion = fs.readFileSync(upgradeConf.version).toString().trim()
+  } catch (e) {
+    console.log('device version not found')
+  }
+  return currentVersion
 }
 
 const deviceModel = () => {
@@ -89,22 +108,14 @@ const deviceModel = () => {
   return model
 }
 
-const deviceSN = () => {
-  let deviceSN 
-  try {
-    deviceSN = fs.readFileSync(path.join(Config.storage.dirs.certDir, 'deviceSN')).toString().trim()
-  } catch(e){
-    console.log('*****\ndeviceSN not found\n*****\n')
-  }
-  return deviceSN
-}
-
 module.exports = {
   NetworkAddr,
   TMPFILE,
   setDeviceName,
+  SoftwareVersion,
   deviceName,
   deviceModel,
-  hardwareInfo,
+  deviceInfo,
+  deviceUSN,
   DEVICE_NAME
 }

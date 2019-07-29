@@ -2,7 +2,7 @@
  * @Author: JackYang
  * @Date: 2019-07-08 14:06:53  
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-07-26 16:48:27
+ * @Last Modified time: 2019-07-29 10:46:02
  * 
  */
 
@@ -23,6 +23,7 @@ const debug = require('debug')('ws:upgrade')
 const Fetch = require('../lib/fetch')
 const State = require('../lib/state')
 const Download = require('../lib/download')
+const { SoftwareVersion } = require('../lib/device')
 
 const upgradeConf = Config.get('upgrade')
 
@@ -117,12 +118,7 @@ class Upgrade extends event {
     this.dir = dir
     this.fetcher = new Fetch(true)
     this.fetcher.on('Pending', this.onFetchData.bind(this))
-    this.currentVersion = '0.0.0'
-    try {
-      this.currentVersion = fs.readFileSync(upgradeConf.version).toString().trim()
-    } catch (e) {
-      console.log(e.message)
-    }
+    this.currentVersion = SoftwareVersion()
     new Pending(this)
   }
 
@@ -208,8 +204,11 @@ class Upgrade extends event {
   view() {
     return {
       state: this.state.name(),
-      error: this.state.error,
-      version: this.state.version,
+      working: {
+        error: this.state.error,
+        version: this.state.version,
+      },
+      current: this.currentVersion,
       fetch: this.fetcher && this.fetcher.view(),
       download: this.downloader && this.downloader.view()
     }
