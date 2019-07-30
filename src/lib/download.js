@@ -53,19 +53,15 @@ class HashTransform extends require('stream').Transform {
 class Checking extends State {
   enter() {
     mkdirp.sync(this.ctx.tmpDir)
-    mkdirp.sync(this.ctx.dstDir)
-
     let dstName = this.ctx.version
-    let srcP = path.join(this.ctx.dstDir, dstName)
-    this.ctx.dstPath = srcP
-    fs.lstat(srcP, (err, stat) => {
-      if (this.destroyed) return
-      if (err) {
-        rimraf(srcP, err => {
-          this.setState('Working')
-        })
+    this.ctx.ctx.LIST(null, null, (err, data) => {
+      console.log('Download Checking', err, data)
+      if (err) return this.setState('Failed', err)
+      let rootfs = data.roots.find(x => x.version === dstName && !x.parent)
+      if (rootfs) {
+        this.setState('Finished', path.join(Config.storage.roots.vols, rootfs.uuid))
       } else {
-        this.setState('Finished', srcP, stat.size)
+        this.setState('Working')
       }
     })
   }
@@ -184,8 +180,9 @@ class Finished extends State {
 }
 
 class Download extends EventEmitter {
-  constructor(latest, tmpDir, dstDir) {
+  constructor(ctx, latest, tmpDir, dstDir) {
     super()
+    this.ctx = ctx
     this.latest = latest
     this.tmpDir = tmpDir
     this.dstDir = dstDir

@@ -2,7 +2,7 @@
  * @Author: JackYang
  * @Date: 2019-07-08 14:06:53  
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-07-30 10:41:29
+ * @Last Modified time: 2019-07-30 12:39:56
  * 
  */
 
@@ -176,7 +176,7 @@ class Upgrade extends event {
   handleDownloadMessage(data) {
     if (this.downloader && !this.downloader.isFinished()) return // ignore message
     if (this.working) return
-    this.downloader = new Download(data, this.tmpDir, this.dir)
+    this.downloader = new Download(this, data, this.tmpDir, this.dir)
   }
 
   handleCheckoutMessage(data) {
