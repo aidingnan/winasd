@@ -66,7 +66,7 @@ const setDeviceName = (name, callback) => {
 const deviceInfo = () => {
   return {
     sn: deviceSN(),
-    usn: DeviceUSN(),
+    usn: deviceUSN(),
     version: SoftwareVersion(),
     name: deviceName(),
     model: deviceModel()
