@@ -568,19 +568,6 @@ class AppService {
       .catch(e => (this.operation = null, callback(e)))
   }
 
-  getUpgradeList(local, cb) {
-    return local ? this.upgrade.listLocal(cb) :
-      this.upgrade.listAll(cb)
-  }
-
-  upgradeDevice(version, cb) {
-    return this.upgrade.upgrade(version, cb)
-  }
-
-  upgradeConfirm(cb) {
-    return this.upgrade.confirm(cb)
-  }
-
   updateDeviceName(user, name, callback) {
     Device.setDeviceName(name, (err, data) => {
       callback(err, data)
@@ -593,6 +580,7 @@ class AppService {
     this.channel && this.deviceSN && this.channel.publish(`device/${ this.deviceSN }/info`, JSON.stringify({
       lanIp: Device.NetworkAddr('lanip'),
       llIp: Device.NetworkAddr('linklocal'),
+      version: Device.SoftwareVersion(),
       name: Device.deviceName()
     }))
   }

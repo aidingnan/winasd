@@ -3,7 +3,7 @@ const fs = require('fs')
 const path = require('path')
 const Config = require('config')
 const State = require('../lib/state')
-const { NetworkAddr, deviceName } = require('../lib/device')
+const { NetworkAddr, deviceName, SoftwareVersion } = require('../lib/device')
 const debug = require('debug')('ws:channel')
 const request = require('request')
 const Client = require('../lib/mqttClient')
@@ -87,6 +87,7 @@ class Connecting extends Base {
       device.publish(`device/${ this.ctx.sn }/info`, JSON.stringify({
         lanIp: NetworkAddr('lanip'),
         llIp: NetworkAddr('linklocal'),
+        version: SoftwareVersion(),
         name: deviceName()
       }))
     })
@@ -158,6 +159,7 @@ class Connecting extends Base {
       device.publish(`device/${ this.ctx.sn }/info`, JSON.stringify({
         lanIp: NetworkAddr('lanip'),
         llIp: NetworkAddr('linklocal'),
+        version: SoftwareVersion(),
         name: deviceName()
       }))
     })
@@ -207,6 +209,8 @@ class Connected extends Base {
     this.connection.subscribe(`cloud/${ this.ctx.sn }/pipe`)
     this.connection.subscribe(`cloud/${ this.ctx.sn }/users`)
     this.connection.subscribe(`cloud/${ this.ctx.sn }/token`)
+    this.connection.subscribe(`cloud/${ this.ctx.sn }/checkout`)
+    this.connection.subscribe(`cloud/${ this.ctx.sn }/download`)
     this.timer = setTimeout(() => {
       this.refreshToken() // refresh token
     }, this.refreshTokenTime)
@@ -334,8 +338,12 @@ class Channel extends require('events') {
       this.ctx.winas && this.ctx.winas.sendMessage({ type: 'userUpdate', data})
     } else if (topic.endsWith('token')){
       this.ctx.token = data.token
+    } else if (topic.endsWith('checkout')){ //upgrade
+      this.ctx.upgrade.handleCheckoutMessage(data)
+    } else if (topic.endsWith('download')){//download image
+      this.ctx.upgrade.handleDownloadMessage(data)
     } else {
-      console.log('miss message: ', topic, data)
+      console.log('miss channel message:\n', topic, data)
     }
   }
 
@@ -358,10 +366,8 @@ class Channel extends require('events') {
       return this.ctx.updateDeviceName(null, bodym.name, err => 
         this.reqCommand(message, err, {}))
     } else if (urlPath === '/winasd/upgrade' && verb === 'GET') {
-      return this.ctx.upgrade.listAll((err, data) => this.reqCommand(message, err, data))
-    } else if (urlPath === '/winasd/upgrade' && verb === 'POST') {
-      return this.ctx.upgrade.upgrade(bodym.version, err => this.reqCommand(message, err, {}))
-    }else {
+      return this.ctx.upgrade.LIST(user, bodym, (err, data) => this.reqCommand(message, err, data))
+    } else {
       return this.reqCommand(message, formatError('not found'))
     }
   }

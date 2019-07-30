@@ -84,7 +84,7 @@ const deviceSN = () => {
 }
 
 const deviceUSN = () => {
-
+  
 }
 
 const SoftwareVersion = () => {

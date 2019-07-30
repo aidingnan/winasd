@@ -2,7 +2,7 @@
  * @Author: JackYang
  * @Date: 2019-07-08 14:06:53  
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-07-29 10:46:02
+ * @Last Modified time: 2019-07-30 10:41:29
  * 
  */
 
@@ -18,6 +18,7 @@ const mkdirpAsync = Promise.promisify(mkdirp)
 const rimraf = require('rimraf')
 const rimrafAsync = Promise.promisify(rimraf)
 const Config = require('config')
+const validator = require('validator')
 const debug = require('debug')('ws:upgrade')
 
 const Fetch = require('../lib/fetch')
@@ -27,8 +28,13 @@ const { SoftwareVersion } = require('../lib/device')
 
 const upgradeConf = Config.get('upgrade')
 
+const VolsPath = Config.storage.roots.vols
+
 const isHighVersion = (current, next) => current < next
+
 const TMPVOL = 'e56e1a2e-9721-4060-87f4-0e6c3ba3574b'
+const WORKINGVOL = 'ebcc3123-127a-4d26-b083-38e8c0bf7f09'
+const isUUID = uuid => typeof uuid === 'string' && /[a-f0-9\-]/.test(uuid) && validator.isUUID(uuid)
 
 class Base extends State {
   debug(...args) {
@@ -85,6 +91,7 @@ class Upgrading extends Base {
     await child.execAsync(`btrfs subvolume snapshot ${tmpvol} ${ path.join(Config.storage.roots.vols, roUUID) }`)
     await rimrafAsync(tmpvol)
     await child.execAsync(`cowroot-checkout -m ro ${roUUID}`)
+    await child.execAsync('sync')
   }
 
   upgrade(version, callback) {
@@ -116,10 +123,10 @@ class Upgrade extends event {
     this.ctx = ctx
     this.tmpDir = tmpDir
     this.dir = dir
-    this.fetcher = new Fetch(true)
-    this.fetcher.on('Pending', this.onFetchData.bind(this))
+    // this.fetcher = new Fetch(true)
+    // this.fetcher.on('Pending', this.onFetchData.bind(this))
     this.currentVersion = SoftwareVersion()
-    new Pending(this)
+    // new Pending(this)
   }
 
   get downloader() {
@@ -148,68 +155,93 @@ class Upgrade extends event {
    * "type": "a1"
    * }
    */
-  onFetchData() {
-    let data = this.fetcher.last.data
-    if (this.fetcher.last.error || !data) return // fetch error
-    let docs = []
-    if (Array.isArray(data))
-      docs = data.sort((a, b) => a.tag < b.tag)
-    if (docs.length) {
-      let latest = docs[0]
-      if (isHighVersion(this.currentVersion, latest.tag)) {
-        if (!this.downloader || isHighVersion(this.downloader.version, latest.tag) || this.downloader.status === 'Failed')
-          this.downloader = new Download(latest, this.tmpDir, this.dir)
-        else
-          debug('downloader already start')
-      }
-    } else
-      debug('Fetch Empty Data')
+  // onFetchData() {
+  //   let data = this.fetcher.last.data
+  //   if (this.fetcher.last.error || !data) return // fetch error
+  //   let docs = []
+  //   if (Array.isArray(data))
+  //     docs = data.sort((a, b) => a.tag < b.tag)
+  //   if (docs.length) {
+  //     let latest = docs[0]
+  //     if (isHighVersion(this.currentVersion, latest.tag)) {
+  //       if (!this.downloader || isHighVersion(this.downloader.version, latest.tag) || this.downloader.status === 'Failed')
+  //         this.downloader = new Download(latest, this.tmpDir, this.dir)
+  //       else
+  //         debug('downloader already start')
+  //     }
+  //   } else
+  //     debug('Fetch Empty Data')
+  // }
+  
+  handleDownloadMessage(data) {
+    if (this.downloader && !this.downloader.isFinished()) return // ignore message
+    if (this.working) return
+    this.downloader = new Download(data, this.tmpDir, this.dir)
   }
 
-  upgrade(version, callback) {
-    this.state.upgrade(version, callback)
-  }
-
-  confirm(callback) {
-    child.exec('cowroot-confirm', e => callback(e))
-  }
-
-  listAll(callback) {
-    this.listLocal((err, data) => {
-      if (err) return callback(err)
-      this.fetcher.start((err, data2) => {
-        if (err) return callback(err)
-        data2.forEach(x => x.downloaded = data.includes(x.tag))
-        return callback(null, data2)
+  handleCheckoutMessage(data) {
+    if (this.downloader && !this.downloader.isFinished()) return
+    if (this.working) return
+    this.working = true
+    this.checkoutAsync(data)
+      .then(_ => this.working = false)
+      .catch(e => {
+        this.working = false
+        console.log(e)
       })
-    })
   }
-
-  listLocal(callback) {
-    fs.readdir(this.dir, (err, data) => {
-      if (err) return callback(err)
-      data = data.sort((a, b) => a < b)
-      if (data.length > 1) {// error case
-        data.slice(1).forEach(x => rimraf(path.join(this.dir, x), () => {}))
-        data = [data[0]]
-      }
-      return callback(null, data)
-    })
+  
+  async checkoutAsync(data) {
+    if (!data || !data.uuid || !isUUID(data.uuid)) return
+    let uuid = data.uuid
+    let vols = await this.listLocalAsync()
+    if (uuid === vols.current.uuid) return
+    if (!vols.roots.find(x => x.uuid === uuid)) return
+    await child.execAsync(`cowroot-checkout -m ro ${uuid}`)
+    console.log('checkout success')
+    await child.execAsync('sync; sleep 1; reboot')
   }
 
   async listLocalAsync() {
-    return Promise.promisify(this.listLocal).bind(this)()
+    let vols = await fs.readdirAsync(VolsPath)
+    // filter built-in vols
+    vols = vols.filter(x => x !== WORKINGVOL && x !== TMPVOL && isUUID(x))
+    
+    let roots = []
+    for (let i = 0; i < vols.length; i++) {
+      let tag, commit, parent, version
+      try {
+        tag = (await fs.readFileAsync(path.join(VolsPath, vols[i], '/boot/.tag'))).toString()
+        commit = (await fs.readFileAsync(path.join(VolsPath, vols[i], '/boot/.commit'))).toString()
+        parent = (await fs.readFileAsync(path.join(VolsPath, vols[i], '/boot/.parent'))).toString()
+        version = (await fs.readFileAsync(path.join(VolsPath, vols[i], '/etc/version'))).toString() || '0.0.0'
+        uuid = vols[i]
+      } catch(e) {
+        console.log(`read ${vols[i]} vol failed, ignore`)
+        console.log(e.message)
+      }
+      roots.push({ tag, commit, parent, version })
+    }
+
+    let current = {}
+    try {
+      current.tag = (await fs.readFileAsync('/boot/.tag')).toString()
+      current.commit = (await fs.readFileAsync('/boot/.commit')).toString()
+      current.uuid = (await fs.readFileAsync('/boot/.parent')).toString()
+      current.version = (await fs.readFileAsync('/etc/version')).toString() || '0.0.0'
+    } catch(e) {}
+    return { current, roots }
+  }
+
+  LIST(user, props, callback) {
+    this.listLocalAsync()
+      .then(x => callback(null, x))
+      .catch(e => callback(e))
   }
 
   view() {
     return {
-      state: this.state.name(),
-      working: {
-        error: this.state.error,
-        version: this.state.version,
-      },
       current: this.currentVersion,
-      fetch: this.fetcher && this.fetcher.view(),
       download: this.downloader && this.downloader.view()
     }
   }

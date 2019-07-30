@@ -1,10 +1,21 @@
-/* * @Author: JackYang  * @Date: 2019-07-08 14:06:37  * @Last Modified by:   JackYang  * @Last Modified time: 2019-07-08 14:06:37  */
-const fs = require('fs')
-const path = require('path')
+/*
+ * Filename: /home/jackyang/Documents/winas-daemon/src/lib/download.js
+ * Path: /home/jackyang/Documents/winas-daemon
+ * Created Date: Monday, July 29th 2019, 6:15:37 pm
+ * Author: jackyang
+ * 
+ * Copyright (c) 2019 Wisnuc Inc
+ */
+const Promise = require('bluebird')
+const fs = Promise.promisifyAll(require('fs'))
+const path = Promise.promisifyAll(require('path'))
+const child = Promise.promisifyAll(require('child_process'))
 const EventEmitter = require('events')
 const request = require('superagent')
 const mkdirp = require('mkdirp')
+const mkdirpAsync = Promise.promisify(mkdirp)
 const rimraf = require('rimraf')
+const rimrafAsync = Promise.promisify(rimraf)
 const Config = require('config')
 const crypto = require('crypto')
 const UUID = require('uuid')
@@ -13,6 +24,7 @@ const debug = require('debug')('ws:downloader')
 const State = require('./state')
 
 const HOUR = 1 * 1000 * 60 * 60
+const TMPVOL = 'e56e1a2e-9721-4060-87f4-0e6c3ba3574b'
 
 class HashTransform extends require('stream').Transform {
   constructor() {
@@ -40,7 +52,6 @@ class HashTransform extends require('stream').Transform {
 
 class Checking extends State {
   enter() {
-    super.enter()
     mkdirp.sync(this.ctx.tmpDir)
     mkdirp.sync(this.ctx.dstDir)
 
@@ -102,15 +113,7 @@ class Working extends State {
         e.code = 'ESIZEMISMATCH'
         this.setState('Failed', e)
       } else {
-        rimraf(this.ctx.dstDir, () => { // clean iso dir
-          mkdirp(this.ctx.dstDir, err => {
-            if (err) return this.setState('Failed', err)
-            fs.rename(tmpPath, this.ctx.dstPath, err => {
-              if (err) return this.setState('Failed', err)
-              this.setState('Finished', tmpPath, this.ws.bytesWritten)
-            })
-          })
-        })
+        this.setState('Extracting', tmpPath)
       }
     })
     this.rs.pipe(this.hashT).pipe(this.ws)
@@ -136,24 +139,47 @@ class Working extends State {
   }
 }
 
+class Extracting extends State {
+  enter(tmpPath) {
+    this.extractAsync(tmpPath, this.ctx.version)
+      .then(_ => this.setState('Finished', tmpPath))
+      .catch(e => this.setState('Failed', e))
+  }
+
+  async extractAsync(tmpPath, version) {
+    const tmpvol = path.join(Config.storage.roots.vols, TMPVOL)
+    await rimrafAsync(tmpvol)
+    await child.execAsync(`btrfs subvolume create ${ tmpvol }`)
+    const dirs = ['bin', 'etc', 'lib', 'root', 'sbin', 'usr', 'var']
+    for (let i = 0; i < dirs.length; i++) {
+      let p = path.join(tmpvol, dirs[i])
+      await mkdirpAsync(p)
+      await child.execAsync(`chattr +c ${p}`)
+    }
+    await child.execAsync(`tar xf ${ tmpPath } -C ${ tmpvol } --zstd`)
+    await fs.writeFileAsync(path.join(tmpvol, 'etc', 'version'), version)
+    const roUUID = UUID.v4()
+    await child.execAsync(`btrfs subvolume snapshot ${tmpvol} ${ path.join(Config.storage.roots.vols, roUUID) }`)
+    await rimrafAsync(tmpvol)
+    await child.execAsync('sync')
+  }
+}
+
 class Failed extends State {
   enter(err) {
-    super.enter()
     debug(err)
     this.error = err
     this.timer = setTimeout(() => this.setState('Checking'), 1 * HOUR)
   }
-  
+
   destroy() {
     clearTimeout(this.timer)
   }
 }
 
 class Finished extends State {
-  enter(fpath, length) {
-    super.enter()
+  enter(fpath) {
     this.fpath = fpath
-    this.fLength = length
   }
 }
 
@@ -174,8 +200,8 @@ class Download extends EventEmitter {
   }
 
   bytesWritten() {
-    return this.state instanceof Working ? this.state.bytesWritten()
-      : this.state instanceof Finished ? this.state.fLength : 0
+    return this.state instanceof Working ? this.state.bytesWritten() :
+      this.state instanceof Finished ? this.state.fLength : 0
   }
 
   get status() {
@@ -184,6 +210,10 @@ class Download extends EventEmitter {
 
   destroy() {
     this.state.destroy()
+  }
+
+  isFinished() {
+    return this.status === 'Finished' || this.status === 'Failed'
   }
 
   view() {
@@ -199,5 +229,6 @@ Download.prototype.Working = Working
 Download.prototype.Failed = Failed
 Download.prototype.Finished = Finished
 Download.prototype.Checking = Checking
+Download.prototype.Extracting = Extracting
 
 module.exports = Download
