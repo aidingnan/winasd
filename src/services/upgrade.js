@@ -2,7 +2,7 @@
  * @Author: JackYang
  * @Date: 2019-07-08 14:06:53  
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-07-30 13:09:09
+ * @Last Modified time: 2019-07-30 13:11:55
  * 
  */
 
@@ -215,13 +215,13 @@ class Upgrade extends event {
     
     let roots = []
     for (let i = 0; i < vols.length; i++) {
-      let tag, commit, parent, version
+      let tag, commit, parent, version, uuid
       tag = await readFileWithoutErrorAsync(path.join(VolsPath, vols[i], '/boot/.tag'))
       commit = await readFileWithoutErrorAsync(path.join(VolsPath, vols[i], '/boot/.commit'))
       parent = await readFileWithoutErrorAsync(path.join(VolsPath, vols[i], '/boot/.parent'))
       version = (await readFileWithoutErrorAsync(path.join(VolsPath, vols[i], '/etc/version'))) || '0.0.0'
       uuid = vols[i]
-      roots.push({ tag, commit, parent, version })
+      roots.push({ tag, commit, parent, version, uuid })
     }
 
     let current = {}
