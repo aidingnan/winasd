@@ -2,7 +2,7 @@
  * @Author: JackYang
  * @Date: 2019-07-08 14:06:53  
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-07-30 13:11:55
+ * @Last Modified time: 2019-07-30 14:38:32
  * 
  */
 
@@ -36,7 +36,7 @@ const isUUID = uuid => typeof uuid === 'string' && /[a-f0-9\-]/.test(uuid) && va
 
 const readFileWithoutErrorAsync = async (fp) => {
   try {
-    return (await fs.readFileAsync(fp)).toString()
+    return (await fs.readFileAsync(fp)).toString().trim()
   }catch(e) {
     return
   }
