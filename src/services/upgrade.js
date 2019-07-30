@@ -2,7 +2,7 @@
  * @Author: JackYang
  * @Date: 2019-07-08 14:06:53  
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-07-30 12:39:56
+ * @Last Modified time: 2019-07-30 13:09:09
  * 
  */
 
@@ -21,20 +21,26 @@ const Config = require('config')
 const validator = require('validator')
 const debug = require('debug')('ws:upgrade')
 
-const Fetch = require('../lib/fetch')
+// const Fetch = require('../lib/fetch')
 const State = require('../lib/state')
 const Download = require('../lib/download')
 const { SoftwareVersion } = require('../lib/device')
 
-const upgradeConf = Config.get('upgrade')
-
 const VolsPath = Config.storage.roots.vols
 
-const isHighVersion = (current, next) => current < next
+// const isHighVersion = (current, next) => current < next
 
 const TMPVOL = 'e56e1a2e-9721-4060-87f4-0e6c3ba3574b'
 const WORKINGVOL = 'ebcc3123-127a-4d26-b083-38e8c0bf7f09'
 const isUUID = uuid => typeof uuid === 'string' && /[a-f0-9\-]/.test(uuid) && validator.isUUID(uuid)
+
+const readFileWithoutErrorAsync = async (fp) => {
+  try {
+    return (await fs.readFileAsync(fp)).toString()
+  }catch(e) {
+    return
+  }
+}
 
 class Base extends State {
   debug(...args) {
@@ -210,26 +216,19 @@ class Upgrade extends event {
     let roots = []
     for (let i = 0; i < vols.length; i++) {
       let tag, commit, parent, version
-      try {
-        tag = (await fs.readFileAsync(path.join(VolsPath, vols[i], '/boot/.tag'))).toString()
-        commit = (await fs.readFileAsync(path.join(VolsPath, vols[i], '/boot/.commit'))).toString()
-        parent = (await fs.readFileAsync(path.join(VolsPath, vols[i], '/boot/.parent'))).toString()
-        version = (await fs.readFileAsync(path.join(VolsPath, vols[i], '/etc/version'))).toString() || '0.0.0'
-        uuid = vols[i]
-      } catch(e) {
-        console.log(`read ${vols[i]} vol failed, ignore`)
-        console.log(e.message)
-      }
+      tag = await readFileWithoutErrorAsync(path.join(VolsPath, vols[i], '/boot/.tag'))
+      commit = await readFileWithoutErrorAsync(path.join(VolsPath, vols[i], '/boot/.commit'))
+      parent = await readFileWithoutErrorAsync(path.join(VolsPath, vols[i], '/boot/.parent'))
+      version = (await readFileWithoutErrorAsync(path.join(VolsPath, vols[i], '/etc/version'))) || '0.0.0'
+      uuid = vols[i]
       roots.push({ tag, commit, parent, version })
     }
 
     let current = {}
-    try {
-      current.tag = (await fs.readFileAsync('/boot/.tag')).toString()
-      current.commit = (await fs.readFileAsync('/boot/.commit')).toString()
-      current.uuid = (await fs.readFileAsync('/boot/.parent')).toString()
-      current.version = (await fs.readFileAsync('/etc/version')).toString() || '0.0.0'
-    } catch(e) {}
+    current.tag = await readFileWithoutErrorAsync('/boot/.tag')
+    current.commit = await readFileWithoutErrorAsync('/boot/.commit')
+    current.uuid = await readFileWithoutErrorAsync('/boot/.parent')
+    current.version = (await readFileWithoutErrorAsync('/etc/version')) || '0.0.0'
     return { current, roots }
   }
 
