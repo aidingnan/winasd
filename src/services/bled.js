@@ -3,6 +3,8 @@ const DBus = require('../woodstock/lib/dbus')
 const { STRING } = require('../woodstock/lib/dbus-types')
 const debug = require('debug')('ws:bled')
 const Device = require('../lib/device')
+const Promise = require('bluebird')
+const child = Promise.promisifyAll(require('child_process'))
 
 /**
  * BLED 负责初始化 debus对象
@@ -142,14 +144,19 @@ class BLED extends require('events') {
         this.waitChannel(type, packet, err => {
           if (err) return this.update(type, { seq: packet.seq, error: err, code: 'ECHANNEL' })
           this.update(type, { seq: packet.seq, success:'CHANNEL' })
-          this.boundDevice(type, packet, (err, data) => {
-            if (err) return this.update(type, { seq: packet.seq, error: err, code: 'EBOUND' })
-            this.update(type, { seq: packet.seq, success:'BOUND', data:{
-                sn: this.ctx.deviceSN,
-                addr: Device.NetworkAddr('lanip')
-              }
+          this.waitNTPAsync()
+            .then(_ => {
+              this.update(type, { seq: packet.seq, success:'NTP' })
+              this.boundDevice(type, packet, (err, data) => {
+                if (err) return this.update(type, { seq: packet.seq, error: err, code: 'EBOUND' })
+                this.update(type, { seq: packet.seq, success:'BOUND', data:{
+                    sn: this.ctx.deviceSN,
+                    addr: Device.NetworkAddr('lanip')
+                  }
+                })
+              })
             })
-          })
+            .catch(e => this.update(type, { seq: packet.seq, error:e, code: 'ENTP' }))
         })
       })
     } else {
@@ -171,6 +178,16 @@ class BLED extends require('events') {
         clearTimeout(timer)
         return callback(null)
       })
+    }
+  }
+
+  async waitNTPAsync() {
+    let timeout = new Date().getTime() + 10 * 1000
+    while(true) {
+      if (timeout < new Date().getTime()) throw new Error('ntp sync timeout')
+      if ((await child.execAsync(`timedatectl| grep sync | awk '{ print $4 }'`)).toString().trim() === 'yes')
+        return
+      await Promise.delay(1000)
     }
   }
 
