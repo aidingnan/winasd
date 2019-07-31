@@ -2,6 +2,7 @@ const Bluetooth = require('../woodstock/winas/bluetooth')
 const DBus = require('../woodstock/lib/dbus')
 const { STRING } = require('../woodstock/lib/dbus-types')
 const debug = require('debug')('ws:bled')
+const Device = require('../lib/device')
 
 /**
  * BLED 负责初始化 debus对象
@@ -22,7 +23,7 @@ class BLED extends require('events') {
     this.ctx = ctx
     this.dbus = new DBus()
     this.dbus.on('connect', () => {
-      this.ble = new Bluetooth(ctx.userStore && ctx.userStore.data || false, ctx.deviceSN)
+      this.ble = new Bluetooth(ctx.userStore && ctx.userStore.data || false, ctx.deviceSN, ctx.hostname)
       this.dbus.attach('/org/bluez/bluetooth', this.ble)
       this.emit('connect')
       this.initProperties()
@@ -128,6 +129,51 @@ class BLED extends require('events') {
         let error = Object.assign(new Error('auth failed'), { code: 'EAUTH' })
         return this.update(type, { seq: packet.seq, error })
       }
+    }
+  }
+
+  handleConnectAndBoundAsync(type, packet) {
+    if (packet.action === 'addAndActiveAndBound') {
+      if (this.ctx.localAuth.verify(packet.token)) {
+        this.ctx.net.connect(packet.body.ssid, packet.body.pwd, (err, data) => {
+          if (err) return this.update(type, { seq: packet.seq, error: err, code: 'EWIFI' })
+          this.update(type, { seq: packet.seq, success:'WIFI', data })
+          
+        })
+      } else {
+        let error = Object.assign(new Error('auth failed'), { code: 'EAUTH' })
+        return this.update(type, { seq: packet.seq, error })
+      }
+    }
+  }
+
+  waitChannelAndBoundDevice(type, packet) {
+    if (thix.ctx.channel.status === 'Connected') {
+      this.update(type, { seq: packet.seq, success:'CHANNEL' })
+        this.ctx.requestBind(packet.body.encrypted, err => {
+          if (err) return this.update(type, { seq: packet.seq, error: err, code: 'EBIND' })
+          this.update(type, { seq: packet.seq, success:'BOUND', data:{
+            sn: this.ctx.deviceSN,
+            addr: Device.NetworkAddr('lanip')
+          } })
+        })
+    } else {
+      let timer = setTimeout(() => {
+        timeout = true
+        this.update(type, { seq: packet.seq, error: new Error('channel connect timeout'), code: 'ECHANNEL' })
+      }, 60 * 1000)
+      this.ctx.channel.once('ChannelConnected', () => {
+        if (timeout) return
+        clearTimeout(timer)
+        this.update(type, { seq: packet.seq, success:'CHANNEL' })
+        this.ctx.requestBind(packet.body.encrypted, err => {
+          if (err) return this.update(type, { seq: packet.seq, error: err, code: 'EBIND' })
+          this.update(type, { seq: packet.seq, success:'BOUND', data:{
+            sn: this.ctx.deviceSN,
+            addr: Device.NetworkAddr('lanip')
+          } })
+        })
+      })
     }
   }
 

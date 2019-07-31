@@ -100,7 +100,6 @@ class Prepare extends BaseState {
         this.loadDevice((err, device) => {
           if (err) return this.setState('Failed', EDEVICE)
           this.ctx.userStore = userStore // bound user info
-          this.ctx.deviceInfo = device
           this.ctx.deviceSN = device.sn // deviceSN
           this.setState('Starting')
         })
@@ -118,9 +117,11 @@ class Prepare extends BaseState {
         ecc.preset(e => {
           if (e) return this.setState('Failed', EECCPRESET)
           this.ctx.ecc = ecc
-          this.loadDevice((err, { sn }) => { // provision need
+          this.loadDevice((err, { sn, hostname, usn }) => { // provision need
             if (err) return this.setState('Failed', EDEVICE)
             this.ctx.deviceSN = sn
+            this.ctx.hostname = hostname
+            this.ctx.usn = usn
             this.startupWithoutEcc()
           })
         })
@@ -168,10 +169,20 @@ class Prepare extends BaseState {
         })
       })
     } else {
+      let hostname, usn
       this.ctx.ecc.serialNumber({}, (err, sn) => {
         if (err) return callback(err)
-        return callback(null, {
-          sn: (process.env.NODE_ENV.startsWith('test') ? 'test_' : '') + sn
+        // read hostname
+        fs.readFile(path.join(Config.storage.roots.p, 'init', 'hostname'), (err, data) => {
+          if (data) hostname = data.toString().trim()
+          fs.readFile(path.join(Config.storage.roots.p, 'init', 'usn'), (err, data) => {
+            if (data) usn = data.toString().trim()
+            return callback(null, {
+              sn: (process.env.NODE_ENV.startsWith('test') ? 'test_' : '') + sn,
+              hostname,
+              usn
+            })
+          })
         })
       })
     }
@@ -467,6 +478,8 @@ class AppService {
 
     // properties
     this.deviceSN = undefined
+    this.usn = undefined
+    this.hostname = undefined
 
     Object.defineProperty(this, 'winas', {
       get() {
@@ -622,7 +635,9 @@ class AppService {
       provision: this.provision && this.provision.view(),
       channel: this.channel && this.channel.view(),
       device: Object.assign(Device.deviceInfo(), {
-        sn: this.deviceSN
+        sn: this.deviceSN,
+        hostname: this.hostname,
+        usn: this.usn
       }),
       led: this.ledService && this.ledService.view(),
       winasd: {
