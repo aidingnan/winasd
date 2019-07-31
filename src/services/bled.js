@@ -129,52 +129,59 @@ class BLED extends require('events') {
         let error = Object.assign(new Error('auth failed'), { code: 'EAUTH' })
         return this.update(type, { seq: packet.seq, error })
       }
+    } else if (packet.action === 'addAndActiveAndBound') {
+      this.handleConnectAndBound(type, packet)
     }
   }
 
-  handleConnectAndBoundAsync(type, packet) {
-    if (packet.action === 'addAndActiveAndBound') {
-      if (this.ctx.localAuth.verify(packet.token)) {
-        this.ctx.net.connect(packet.body.ssid, packet.body.pwd, (err, data) => {
-          if (err) return this.update(type, { seq: packet.seq, error: err, code: 'EWIFI' })
-          this.update(type, { seq: packet.seq, success:'WIFI', data })
-          
+  handleConnectAndBound(type, packet) {
+    if (this.ctx.localAuth.verify(packet.token)) {
+      this.ctx.net.connect(packet.body.ssid, packet.body.pwd, (err, data) => {
+        if (err) return this.update(type, { seq: packet.seq, error: err, code: 'EWIFI' })
+        this.update(type, { seq: packet.seq, success:'WIFI', data })
+        this.waitChannel(type, packet, err => {
+          if (err) return this.update(type, { seq: packet.seq, error: err, code: 'ECHANNEL' })
+          this.update(type, { seq: packet.seq, success:'CHANNEL' })
+          this.boundDevice(type, packet, (err, data) => {
+            if (err) return this.update(type, { seq: packet.seq, error: err, code: 'EBOUND' })
+            this.update(type, { seq: packet.seq, success:'BOUND', data:{
+                sn: this.ctx.deviceSN,
+                addr: Device.NetworkAddr('lanip')
+              }
+            })
+          })
         })
-      } else {
-        let error = Object.assign(new Error('auth failed'), { code: 'EAUTH' })
-        return this.update(type, { seq: packet.seq, error })
-      }
+      })
+    } else {
+      let error = Object.assign(new Error('auth failed'), { code: 'EAUTH' })
+      return this.update(type, { seq: packet.seq, error })
     }
   }
 
-  waitChannelAndBoundDevice(type, packet) {
+  waitChannel(type, packet, callback) {
     if (thix.ctx.channel.status === 'Connected') {
-      this.update(type, { seq: packet.seq, success:'CHANNEL' })
-        this.ctx.requestBind(packet.body.encrypted, err => {
-          if (err) return this.update(type, { seq: packet.seq, error: err, code: 'EBIND' })
-          this.update(type, { seq: packet.seq, success:'BOUND', data:{
-            sn: this.ctx.deviceSN,
-            addr: Device.NetworkAddr('lanip')
-          } })
-        })
+      return process.nextTick(() => callback(null))
     } else {
       let timer = setTimeout(() => {
         timeout = true
-        this.update(type, { seq: packet.seq, error: new Error('channel connect timeout'), code: 'ECHANNEL' })
+        return callback(new Error('channel connect timeout'))
       }, 60 * 1000)
       this.ctx.channel.once('ChannelConnected', () => {
         if (timeout) return
         clearTimeout(timer)
-        this.update(type, { seq: packet.seq, success:'CHANNEL' })
-        this.ctx.requestBind(packet.body.encrypted, err => {
-          if (err) return this.update(type, { seq: packet.seq, error: err, code: 'EBIND' })
-          this.update(type, { seq: packet.seq, success:'BOUND', data:{
-            sn: this.ctx.deviceSN,
-            addr: Device.NetworkAddr('lanip')
-          } })
-        })
+        return callback(null)
       })
     }
+  }
+
+  boundDevice(type, packet, callback) {
+    this.ctx.requestBind(packet.body.encrypted, err => {
+      if (err) return callback(err)
+      return callback(null, {
+        sn: this.ctx.deviceSN,
+        addr: Device.NetworkAddr('lanip')
+      })
+    })
   }
 
   handleCloud(type, packet) {
