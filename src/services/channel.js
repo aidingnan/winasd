@@ -1,6 +1,7 @@
 const Device = require('aws-iot-device-sdk').device
 const fs = require('fs')
 const path = require('path')
+const child = require('child_process')
 const Config = require('config')
 const State = require('../lib/state')
 const { NetworkAddr, deviceName, SoftwareVersion } = require('../lib/device')
@@ -189,6 +190,9 @@ class Connecting extends Base {
 
 class Connected extends Base {
   enter (connection, token, device) {
+    clearTimeout(this.ctx.delayCleanTimer)
+    // confirm first
+    child.exec('cowroot-confirm', () => {})
     this.ctx.ctx.token = token
     this.user = device.owner ? {
       id: device.owner,
@@ -257,7 +261,8 @@ class Connected extends Base {
     this.connection.on('error', () => {})
     this.connection.end()
     this.connection = undefined
-    this.ctx.ctx.token = undefined
+    // 延迟清理Token, 防止网络波动
+    this.ctx.delayCleanTimer = setTimeout(() => this.ctx.ctx.token = undefined, 60 * 1000)
     clearTimeout(this.timer)
     clearTimeout(this.waitTimer)
   }

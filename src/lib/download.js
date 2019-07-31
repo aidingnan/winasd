@@ -155,7 +155,7 @@ class Extracting extends State {
     await child.execAsync(`tar xf ${ tmpPath } -C ${ tmpvol } --zstd`)
     await fs.writeFileAsync(path.join(tmpvol, 'etc', 'version'), version)
     const roUUID = UUID.v4()
-    await child.execAsync(`btrfs subvolume snapshot ${tmpvol} ${ path.join(Config.storage.roots.vols, roUUID) }`)
+    await child.execAsync(`btrfs subvolume snapshot -r ${tmpvol} ${ path.join(Config.storage.roots.vols, roUUID) }`)
     await rimrafAsync(tmpvol)
     await child.execAsync('sync')
   }
@@ -165,11 +165,11 @@ class Failed extends State {
   enter(err) {
     debug(err)
     this.error = err
-    this.timer = setTimeout(() => this.setState('Checking'), 1 * HOUR)
+    // this.timer = setTimeout(() => this.setState('Checking'), 1 * HOUR)
   }
 
   destroy() {
-    clearTimeout(this.timer)
+    // clearTimeout(this.timer)
   }
 }
 
@@ -217,6 +217,7 @@ class Download extends EventEmitter {
     return Object.assign({}, this.latest, {
       version: this.version,
       state: this.status,
+      error: this.state.error,
       bytesWritten: this.bytesWritten()
     })
   }
