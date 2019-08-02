@@ -49,8 +49,9 @@ const createSignature = (ecc, op, callback) => {
 module.exports.createSignature = createSignature
 
 module.exports.reqUnbind = (ecc, encrypted, token, callback) => {
-  createSignature(ecc, 'unbind', (err, { signature, raw }) => {
+  createSignature(ecc, 'unbind', (err, data) => {
     if (err) return callback(err)
+    let { signature, raw } = data
     request.post(`${ Config.pipe.baseURL }/s/v1/station/unbind`)
       .send({ signature, encrypted, raw })
       .set('Authorization', token)
@@ -63,8 +64,9 @@ module.exports.reqUnbind = (ecc, encrypted, token, callback) => {
 }
 
 module.exports.reqBind = (ecc, encrypted, token, callback) => {
-  createSignature(ecc, 'bind', (err, { signature, raw }) => {
+  createSignature(ecc, 'bind', (err, data) => {
     if (err) return callback(err)
+    let { signature, raw } = data
     request.post(`${ Config.pipe.baseURL }/s/v1/station/bind`)
       .send({ signature, encrypted, raw })
       .set('Authorization', token)
