@@ -430,6 +430,7 @@ class Channel extends require('events') {
 
   destroy() {
     this.state.destroy()
+    clearTimeout(this.delayCleanTimer)
   }
 }
 
