@@ -198,9 +198,9 @@ class Provisioning extends BaseState {
     this.ctx.net = new NetworkManager(this.ctx)
     this.ctx.net.on('started', state => {
       if (state !== 70) {
-        this.ctx.net.connect('Xiaomi_123', 'wisnuc123456', (err, data) => {
-          console.log('Net Module Connect: ', err, data)
-        })
+        // this.ctx.net.connect('Xiaomi_123', 'wisnuc123456', (err, data) => {
+        //   console.log('Net Module Connect: ', err, data)
+        // })
       }
     })
     this.ctx.net.once('connect', () => {
@@ -621,8 +621,30 @@ class AppService {
           child.exec('reboot', () => {})
         }, 2000)
       }
+      case 'root': {
+        child.exec('rockbian root', (err, stdout, stderr) => {
+          if (err ||stderr)
+            return callback(Object.assign(newError((err&&err.message) || stderr), { status: 400 }))
+          return callback(null)
+        })
+      }
+      case 'unroot': {
+        child.exec('rockbian unroot', (err, stdout, stderr) => {
+          if (err ||stderr)
+            return callback(Object.assign(newError((err&&err.message) || stderr), { status: 400 }))
+          return callback(null)
+        })
+      }
     }
     return process.nextTick(() => callback(null))
+  }
+
+  isRooted() {
+    try{
+      return child.execSync('rockbian is-rooted').toString().startsWith('true')
+    } catch(e) {
+      return false
+    }
   }
 
   view() {
@@ -637,7 +659,8 @@ class AppService {
       device: Object.assign(Device.deviceInfo(), {
         sn: this.deviceSN,
         hostname: this.hostname,
-        usn: this.usn
+        usn: this.usn,
+        rooted: this.isRooted()
       }),
       led: this.ledService && this.ledService.view(),
       winasd: {
