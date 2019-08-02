@@ -166,9 +166,10 @@ class BLED extends require('events') {
   }
 
   waitChannel(type, packet, callback) {
-    if (thix.ctx.channel.status === 'Connected') {
+    if (this.ctx.channel.status === 'Connected') {
       return process.nextTick(() => callback(null))
     } else {
+      let timeout
       let timer = setTimeout(() => {
         timeout = true
         return callback(new Error('channel connect timeout'))
