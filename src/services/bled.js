@@ -139,16 +139,16 @@ class BLED extends require('events') {
   handleConnectAndBound(type, packet) {
     if (this.ctx.localAuth.verify(packet.token)) {
       this.ctx.net.connect(packet.body.ssid, packet.body.pwd, (err, data) => {
-        if (err) return this.update(type, { seq: packet.seq, error: err, code: 'EWIFI' })
+        if (err) return this.update(type, { seq: packet.seq, error: Object.assign(err, {code: 'EWIFI'})})
         this.update(type, { seq: packet.seq, success:'WIFI', data })
         this.waitChannel(type, packet, err => {
-          if (err) return this.update(type, { seq: packet.seq, error: err, code: 'ECHANNEL' })
+          if (err) return this.update(type, { seq: packet.seq, error: Object.assign(err, { code: 'ECHANNEL' })})
           this.update(type, { seq: packet.seq, success:'CHANNEL' })
           this.waitNTPAsync()
             .then(_ => {
               this.update(type, { seq: packet.seq, success:'NTP' })
               this.boundDevice(type, packet, (err, data) => {
-                if (err) return this.update(type, { seq: packet.seq, error: err, code: 'EBOUND' })
+                if (err) return this.update(type, { seq: packet.seq, error:  Object.assign(err, { code: 'EBOUND' })})
                 this.update(type, { seq: packet.seq, success:'BOUND', data:{
                     sn: this.ctx.deviceSN,
                     addr: Device.NetworkAddr('lanip')
@@ -156,7 +156,7 @@ class BLED extends require('events') {
                 })
               })
             })
-            .catch(e => this.update(type, { seq: packet.seq, error:e, code: 'ENTP' }))
+            .catch(e => this.update(type, { seq: packet.seq, error:Object.assign(e, { code: 'ENTP' })}))
         })
       })
     } else {
