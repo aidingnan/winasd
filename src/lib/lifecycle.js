@@ -1,6 +1,7 @@
 const crypto = require('crypto')
 const fs = require('fs')
 const path = require('path')
+const child = require('child_process')
 const Config = require('config')
 const request = require('superagent')
 const UUID = require('uuid')
@@ -12,37 +13,33 @@ const lifecycle = storageConf.files.lifecycle
 const pkeyName = 'device.key'
 
 const createSignature = (ecc, op, callback) => {
-  let sign = () => {
-    let raw = JSON.stringify({
-      lifecycle: fs.readFileSync(path.join(storageConf.dirs.device, lifecycle)).toString().trim(),
+  let raw
+  if (Config.system.withoutEcc) {
+    let signature, raw = JSON.stringify({
+      lifecycle: 'fack device....',
       op
     })
-    if (Config.system.withoutEcc) {
-      let signature
-      try {
-        let sign = crypto.createSign('SHA256')
-        sign.write(raw)
-        sign.end()
-        signature = sign.sign(fs.readFileSync(path.join(certFolder, pkeyName)), 'hex')
-        return callback(null, { signature, raw })
-      } catch(e) {
-        return callback(e)
-      }
-    } else {
-      ecc.sign({ data:raw, der:true }, (err, sig) => {
+    try {
+      let sign = crypto.createSign('SHA256')
+      sign.write(raw)
+      sign.end()
+      signature = sign.sign(fs.readFileSync(path.join(certFolder, pkeyName)), 'hex')
+      return callback(null, { signature, raw })
+    } catch(e) {
+      return callback(e)
+    }
+  } else {
+    readCounter((err, count) => {
+      if (err) return callback(err)
+      raw = JSON.stringify({
+        lifecycle: count,
+        op
+      })
+      ecc.sign({ data:raw }, (err, sig) => {
         if (err) return callback(err)
         callback(null, { signature: sig.toString('hex'), raw })
       })
-    }
-  }
-
-  if (!fs.existsSync(path.join(storageConf.dirs.device, lifecycle))) { // firstTime
-    refresh(err => {
-      console.log(err)
-      sign()
     })
-  } else {
-    sign()
   }
 }
 
@@ -78,20 +75,55 @@ module.exports.reqBind = (ecc, encrypted, token, callback) => {
   })
 }
 
-module.exports.verify = (signature, callback) => {
-  // TODO:
-  // FIXME:
-  // decode signature
-  // check life cycle code
-  // callback true / false
-  callback(null, true)
+module.exports.verify = (ecc, signature, raw, callback) => {
+  if (!ecc || !signature || !raw) {
+    return callback(new Error('invaild args'))
+  }
+  ecc.verify({
+    data: raw,
+    signature: Buffer.from(signature, 'hex')
+  }, (err, data) => {
+    if (err) return callback(err)
+    if (!data) return callback(null, false)
+    try {
+      raw = JSON.parse(raw)
+    }catch(e) {
+      return callback(null, false)
+    }
+    readCounter((err, count) => {
+      if (err) return callback(err)
+      if (raw.lifecycle === count || raw.lifecycle === count -1) {
+        return callback(null, true)
+      }
+      return callback(null, false)
+    })
+  })
 }
 
 const refresh = (callback) => {
-  let tmp = path.join(tmpDir, UUID.v4())
-  fs.writeFile(tmp, UUID.v4(), err => {
-    if (err) return callback(err)
-    fs.rename(tmp, path.join(storageConf.dirs.device, lifecycle), callback)
+  child.exec("atecc -b 1 -c 'counter-inc 0'", (err, stdout, stderr) => {
+    if (err || stderr) {
+      console.log('Counter Inc error: ', err || stderr.toString())
+      return callback(err || new Error(stderr.toString()))
+    } else if (!stdout.toString().startsWith('Counter 0:')){
+      console.log('Counter Inc error output: ', stdout.toString())
+    } else {
+      callback(null)
+    }
+  })
+}
+
+const readCounter = (callback) => {
+  child.exec("atecc -b 1 -c 'counter-read 0'", (err, stdout, stderr) => {
+    if (err || stderr) {
+      console.log('Counter read error: ', err || stderr.toString())
+      return callback(err || new Error(stderr.toString()))
+    } else if (!stdout.toString().startsWith('Counter 0:') || stdout.toString().trim().split(':').length !== 2){
+      console.log('Counter Inc error output: ', stdout.toString())
+    } else {
+      let count = stdout.toString().trim().split(':')[1].trim()
+      callback(null, parseInt(count))
+    }
   })
 }
 

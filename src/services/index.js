@@ -265,7 +265,7 @@ class Unbind extends BaseState {
     this.ctx.channel.once('ChannelConnected', (device, user) => {
       if (user) { // mismatch
         console.log('****** cloud device bind state mismatch, check signature *****')
-        verify(device.info.signature, (err, verifyed) => {
+        verify(this.ctx.ecc, device.info && device.info.signature, device.info && device.info.raw, (err, verifyed) => {
           if (err || !verifyed) {
             console.log('*** cloud device bind state mismatch, device in unbind ***')
             this.setState('Failed', EBOUND)
@@ -408,7 +408,7 @@ class Bound extends BaseState {
         this.ctx.userStore.save(user, console.log) // ignore error
 
         console.log('****** cloud device Bound state mismatch, check signature *****')
-        verify(device.info && device.info.signature, (err, verifyed) => {
+        verify(this.ctx.ecc, device.info && device.info.signature, device.info && device.info.raw, (err, verifyed) => {
           if (err || !verifyed) {
             console.log('*** cloud device bound state mismatch, device in bound ***')
             this.setState('Failed', EBOUND)
@@ -608,7 +608,7 @@ class AppService {
 
   PATCH(user, props, callback) {
     let op = props.op
-    if (!op || !['shutdown', 'reboot'].includes(op))
+    if (!op || !['shutdown', 'reboot', 'root', 'unroot'].includes(op))
       return process.nextTick(() => callback(Object.assign(new Error('invaild op'), { status: 400 })))
     switch(op) {
       case 'shutdown': {
