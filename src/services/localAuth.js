@@ -6,8 +6,8 @@ const KEYS = 'abcdefg12345678'.split('')
 const RandomKey = () => KEYS.map(x => KEYS[Math.round(Math.random()*14)]).join('')
 
 const COLORS = [
-  ['#ff0000', 'alwaysOn'], ['#00ff00', 'alwaysOn'], ['#0000ff', 'alwaysOn'],
-  ['#ff0000', 'breath'], ['#00ff00', 'breath'], ['#0000ff', 'breath']]
+  ['#ff0000', 'alwaysOn'], ['#ffffff', 'alwaysOn'], ['#0000ff', 'alwaysOn'],
+  ['#ff0000', 'breath'], ['#00ff00', 'breath'], ['#ffffff', 'breath']]
 const CreateArgs = () => COLORS[Math.floor(Math.random() * 6)]
 
 /**
