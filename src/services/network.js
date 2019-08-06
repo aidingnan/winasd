@@ -1,4 +1,7 @@
+const os = require('os')
 const debug = require('debug')('ws:net')
+const child = require('child_process')
+const readline = require('readline')
 
 const DBus = require('../woodstock/lib/dbus')
 const { STRING } = require('../woodstock/lib/dbus-types')
@@ -95,6 +98,77 @@ class NetWorkManager extends require('events') {
       addresses: this.addresses,
       detail: this.detail
     }
+  }
+}
+
+class Network extends require('events') {
+  constructor(ctx) {
+    super()
+    this.ctx = ctx
+    this.startMonitor()
+  }
+
+  startMonitor() {
+    this.monitor = child.spawn('nmcli', ['monitor'])
+    this.readline = readline.createInterface({ input: this.monitor.stdout })
+    this.readline.on("close", () => {
+      debug('monitor closed')
+    })
+    this.readline.on("line", this.parseMessage.bind(this))
+  }
+
+  parseMessage(message) {
+    clearTimeout(this.refreshTimer)
+    this.refreshTimer = setTimeout(() => this.refreshInfo(), 1500)
+    message = message.toString().trim()
+    if (!message) return
+    let ms = message.split(': ')
+    if (ms.length === '1') {
+      if (ms[0].startsWith('Networkmanager is now in the')) {
+
+      } else if (ms[0].startsWith('Connectivity is now')) {
+
+      }
+    } else if (ms.length === '2') {
+
+    }
+  }
+
+  refreshInfo() {
+    if (this.refreshing) {
+      this.pending = true
+      return
+    }
+    this.refreshing = true
+    this.pending = false
+    child.exec('nmcli d show wlan0', (err, stdout, stderr) => {
+      this.refreshing = false
+      if (err || stderr) console.log('network info refresh failed')
+      else {
+        stdout.toString()
+          .split('/n')
+          .forEach(x => {
+            let arr = x.split(':')
+          })
+      }
+      if (this.pending) {
+        this.refreshInfo()
+      }
+    })
+  }
+
+  connect(ssid, pwd, callback) {
+    child.exec(`nmcli d wifi connect ${ ssid } password ${pwd}`, (err, stdout, stderr) => {
+
+    })
+  }
+
+  destroy() {
+
+  }
+
+  view() {
+
   }
 }
 

@@ -661,6 +661,7 @@ class AppService {
         return child.exec('rockbian root', (err, stdout, stderr) => {
           if (err ||stderr)
             return callback(Object.assign(newError((err&&err.message) || stderr), { status: 400 }))
+          child.exec('sleep 2; reboot', () => {})
           return callback(null)
         })
       }
@@ -668,6 +669,7 @@ class AppService {
         return child.exec('rockbian unroot', (err, stdout, stderr) => {
           if (err ||stderr)
             return callback(Object.assign(newError((err&&err.message) || stderr), { status: 400 }))
+          child.exec('sleep 2; reboot', () => {})
           return callback(null)
         })
       }
