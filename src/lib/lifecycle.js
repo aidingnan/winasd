@@ -12,12 +12,13 @@ const tmpDir = storageConf.dirs.tmpDir
 const lifecycle = storageConf.files.lifecycle
 const pkeyName = 'device.key'
 
-const createSignature = (ecc, op, callback) => {
+const createSignature = (ecc, op, volume, callback) => {
   let raw
   if (Config.system.withoutEcc) {
     let signature, raw = JSON.stringify({
       lifecycle: 'fack device....',
-      op
+      op,
+      volume
     })
     try {
       let sign = crypto.createSign('SHA256')
@@ -33,7 +34,8 @@ const createSignature = (ecc, op, callback) => {
       if (err) return callback(err)
       raw = JSON.stringify({
         lifecycle: count,
-        op
+        op,
+        volume
       })
       ecc.sign({ data:raw }, (err, sig) => {
         if (err) return callback(err)
@@ -46,14 +48,15 @@ const createSignature = (ecc, op, callback) => {
 module.exports.createSignature = createSignature
 
 module.exports.reqUnbind = (ecc, encrypted, token, callback) => {
-  createSignature(ecc, 'unbind', (err, data) => {
+  let volume = UUID.v4()
+  createSignature(ecc, 'unbind', volume, (err, data) => {
     if (err) return callback(err)
     let { signature, raw } = data
     request.post(`${ Config.pipe.baseURL }/s/v1/station/unbind`)
       .send({ signature, encrypted, raw })
       .set('Authorization', token)
       .then(res => {
-        callback(null, res.body)
+        callback(null, res.body, volume)
       }, error => {
         callback(error)
       })
@@ -61,14 +64,15 @@ module.exports.reqUnbind = (ecc, encrypted, token, callback) => {
 }
 
 module.exports.reqBind = (ecc, encrypted, token, callback) => {
-  createSignature(ecc, 'bind', (err, data) => {
+  let volume = UUID.v4()
+  createSignature(ecc, 'bind', volume, (err, data) => {
     if (err) return callback(err)
     let { signature, raw } = data
     request.post(`${ Config.pipe.baseURL }/s/v1/station/bind`)
       .send({ signature, encrypted, raw })
       .set('Authorization', token)
       .then(res => {
-        callback(null, res.body)
+        callback(null, res.body, volume)
       }, error => {
         callback(error)
       })

@@ -1,6 +1,7 @@
 /* * @Author: JackYang  * @Date: 2019-07-10 16:32:51  * @Last Modified by:   JackYang  * @Last Modified time: 2019-07-10 16:32:51  */
 const fs = require('fs')
 const path = require('path')
+const UUID = require('uuid')
 const Config = require('config')
 
 const Promise = require('bluebird')
@@ -270,7 +271,8 @@ class Unbind extends BaseState {
             console.log('*** cloud device bind state mismatch, device in unbind ***')
             this.setState('Failed', EBOUND)
           } else {
-            this.setState('Binding', user)
+            // verify func already parse json, so no error try catch here
+            this.setState('Binding', user, JSON.parse(device.info.raw).volume)
           }
         })
       } else {
@@ -289,7 +291,7 @@ class Unbind extends BaseState {
         this.bindingFlag = false
         return callback(err)
       }
-      return reqBind(this.ctx.ecc, encrypted, this.ctx.token, (err, data) => {
+      return reqBind(this.ctx.ecc, encrypted, this.ctx.token, (err, data, volume) => {
         if (err) {
           this.bindingFlag = false
           return callback(err)
@@ -299,7 +301,7 @@ class Unbind extends BaseState {
           username: data.data.username,
           phone: data.data.username
         }
-        this.setState('Binding', user, callback)
+        this.setState('Binding', user, volume, callback)
       })
     })
   }
@@ -330,8 +332,8 @@ class Unbind extends BaseState {
  * ```
  */
 class Binding extends BaseState {
-  enter(user, callback = () => {}) {
-    this.start(user)
+  enter(user, volume, callback = () => {}) {
+    this.start(user, volume)
       .then(() => (process.nextTick(() => callback(null, user)), this.setState('Bound')))
       .catch(e => {
         process.nextTick(() => 
@@ -340,8 +342,9 @@ class Binding extends BaseState {
       })
   }
 
-  async start(user) {
-    await this.cleanVolumeAsync()
+  async start(user, volume) {
+
+    await this.cleanVolumeAsync(volume)
     // save user
     await new Promise((resolve, reject) => this.ctx.userStore.save(user, err => err ? reject(err) : resolve()))
     // refresh lifecycle
@@ -350,43 +353,76 @@ class Binding extends BaseState {
     this.ctx.bled.updateAdv()
   }
 
-  async cleanVolumeAsync() {
-    // FIXME: where is the data device
+  async cleanVolumeAsync(volume) {
     try {
       await child.execAsync('umount -f /dev/sda')
-    } catch (e){
-      if (!e.message || !e.message.includes('not mounted')){ 
-        throw e
-      }
+    } catch (e) {
+      if (!e.message || !e.message.includes('not mounted')) throw e
     }
+
     // FIXME:
-    await child.execAsync(`mkfs.btrfs -f /dev/sda`)
+    if (!volume)
+      console.log('[WARN] binding clean volume check failed: volume uuid not found')
+    
+    const cmd = "btrfs fi show | grep -B 2 /dev/sda | grep Label | awk '{ print $4 }'"
+    // check uuid
+    const volUUID = (await child.execAsync(cmd)).toString().trim()
+    // do nothing if already clean
+    if (volUUID === volume) return
+    
+    await child.execAsync(`mkfs.btrfs -f -U ${volume || UUID.v4()} /dev/sda`)
 
     await child.execAsync('partprobe')
   }
 }
 
 class Unbinding extends BaseState {
-  enter() {
-    this.doUnbind()
+  enter(volume) {
+    this.doUnbind(volume)
       .then(() => this.setState('Unbind'))
       .catch(e => this.setState('Failed', Object.assign(e, {
         code: 'EUNBINDING'
       })))
   }
 
-  async doUnbind() {
+  async doUnbind(volume) {
     // delete user info
     await new Promise((resolve, reject) => this.ctx.userStore.save(null, err => err ? reject(err) : resolve()))
     // set default device name, ignore error
     await new Promise((res, rej) => Device.setDeviceName(Device.DEVICE_NAME, _ => res()))
+
+    try {
+      await this.cleanVolumeAsync(volume)
+    } catch(e) {
+      console.log('[WARN] Clean Volume Failed: ', e.message)
+    }
+
     // refresh lifecycle
     await new Promise((res, rej) => refresh(err => err ? rej(err) : res()))
-
     // update cloud device info
     this.ctx.deviceUpdate()
     // update ble advertisement
     this.ctx.bled.updateAdv()
+  }
+
+  async cleanVolumeAsync(volume) {
+    if (!volume) throw new Error('volume uuid not found')
+    try {
+      await child.execAsync('umount -f /dev/sda')
+    } catch (e){
+      if (!e.message || !e.message.includes('not mounted')){
+        throw e
+      }
+    }
+    const cmd = "btrfs fi show | grep -B 2 /dev/sda | grep Label | awk '{ print $4 }'"
+    // check uuid
+    const volUUID = (await child.execAsync(cmd)).toString().trim()
+
+    if (volUUID === volume) return
+
+    await child.execAsync(`mkfs.btrfs -U  ${volume} -f /dev/sda`)
+
+    await child.execAsync('partprobe')
   }
 }
 
@@ -413,7 +449,7 @@ class Bound extends BaseState {
             console.log('*** cloud device bound state mismatch, device in bound ***')
             this.setState('Failed', EBOUND)
           } else {
-            this.setState('Unbinding', user)
+            this.setState('Unbinding', JSON.parse(device.info.raw).volume)
           }
         })
       } else {
@@ -432,13 +468,13 @@ class Bound extends BaseState {
     if (this.unbindFlag) return callback(new Error('error state'))
     if (!this.ctx.token) return callback(new Error('network error'))
     this.unbindFlag = true
-    reqUnbind(this.ctx.ecc, encrypted, this.ctx.token, (err, data) => {
+    reqUnbind(this.ctx.ecc, encrypted, this.ctx.token, (err, data, volume) => {
       if (err) {
         this.unbindFlag = false
         return callback(err)
       }
       process.nextTick(() => callback(null, null))
-      this.setState('Unbinding')
+      this.setState('Unbinding', volume)
     })
   }
 
