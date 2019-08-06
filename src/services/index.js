@@ -368,7 +368,7 @@ class Binding extends BaseState {
     // check uuid
     const volUUID = (await child.execAsync(cmd)).toString().trim()
     // do nothing if already clean
-    if (volUUID === volume) return
+    if (volUUID === volume) return console.log('Volume UUID match. skip mkfs')
     
     await child.execAsync(`mkfs.btrfs -f -U ${volume || UUID.v4()} /dev/sda`)
 
@@ -418,7 +418,7 @@ class Unbinding extends BaseState {
     // check uuid
     const volUUID = (await child.execAsync(cmd)).toString().trim()
 
-    if (volUUID === volume) return
+    if (volUUID === volume) return console.log('Volume UUID match. skip mkfs')
 
     await child.execAsync(`mkfs.btrfs -U  ${volume} -f /dev/sda`)
 
