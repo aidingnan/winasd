@@ -648,24 +648,24 @@ class AppService {
       return process.nextTick(() => callback(Object.assign(new Error('invaild op'), { status: 400 })))
     switch(op) {
       case 'shutdown': {
-        setTimeout(() => {
+        return setTimeout(() => {
           child.exec('shutboot', () => {})
         }, 2000)
       }
       case 'reboot':{
-        setTimeout(() => {
+        return setTimeout(() => {
           child.exec('reboot', () => {})
         }, 2000)
       }
       case 'root': {
-        child.exec('rockbian root', (err, stdout, stderr) => {
+        return child.exec('rockbian root', (err, stdout, stderr) => {
           if (err ||stderr)
             return callback(Object.assign(newError((err&&err.message) || stderr), { status: 400 }))
           return callback(null)
         })
       }
       case 'unroot': {
-        child.exec('rockbian unroot', (err, stdout, stderr) => {
+        return child.exec('rockbian unroot', (err, stdout, stderr) => {
           if (err ||stderr)
             return callback(Object.assign(newError((err&&err.message) || stderr), { status: 400 }))
           return callback(null)
