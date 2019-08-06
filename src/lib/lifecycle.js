@@ -81,7 +81,7 @@ module.exports.reqBind = (ecc, encrypted, token, callback) => {
 
 module.exports.verify = (ecc, signature, raw, callback) => {
   if (!ecc || !signature || !raw) {
-    return callback(new Error('invaild args'))
+    return callback(new Error('invalid args'))
   }
   ecc.verify({
     data: raw,

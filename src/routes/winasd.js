@@ -44,7 +44,7 @@ module.exports = (appService) =>{
 
   // request bind device
   router.post('/bind', (req, res, next) => {
-    if (!req.body.encrypted) return res.error(new Error('invaild encrypted'), 400)
+    if (!req.body.encrypted) return res.error(new Error('invalid encrypted'), 400)
     appService.requestBind(req.body.encrypted, (err, data) => {
       console.log(err)
       if (err) return res.error(err)

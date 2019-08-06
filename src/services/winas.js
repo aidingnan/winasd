@@ -313,7 +313,7 @@ class Winas extends EventEmitter {
     this.stopCbs.forEach(cb => cb(err))
     this.startCbs = []
     this.stopCbs = []
-    this.destroyed = true  // allready destroy
+    this.destroyed = true  // already destroy
   }
 }
 

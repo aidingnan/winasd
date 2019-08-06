@@ -283,7 +283,7 @@ class Unbind extends BaseState {
 
   // request to cloud, save userinfo if success
   requestBind(encrypted, callback) {
-    if (this.bindingFlag) return process.nextTick(() => callback(new Error('allready in binding state')))
+    if (this.bindingFlag) return process.nextTick(() => callback(new Error('already in binding state')))
     if (!this.ctx.token) return process.nextTick(() => callback(new Error('Winas Net Error')))
     this.bindingFlag = true
     this.validateBlock(err => {
@@ -645,7 +645,7 @@ class AppService {
   PATCH(user, props, callback) {
     let op = props.op
     if (!op || !['shutdown', 'reboot', 'root', 'unroot'].includes(op))
-      return process.nextTick(() => callback(Object.assign(new Error('invaild op'), { status: 400 })))
+      return process.nextTick(() => callback(Object.assign(new Error('invalid op'), { status: 400 })))
     switch(op) {
       case 'shutdown': {
         return setTimeout(() => {
