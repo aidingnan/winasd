@@ -145,11 +145,42 @@ class Network extends require('events') {
       this.refreshing = false
       if (err || stderr) console.log('network info refresh failed')
       else {
+        let info = {}
         stdout.toString()
           .split('/n')
           .forEach(x => {
-            let arr = x.split(':')
+            let arr = x.split(': ')
+            if (arr.length !== 2) return
+            switch (arr[0]) {
+              case 'GENERAL.DEVICE':
+                info.device = arr[1].trim()
+                break
+              case 'GENERAL.TYPE':
+                info.type = arr[1].trim()
+                break
+              case 'GENERAL.HWADDR':
+                info.HwAddress = arr[1].trim()
+                break
+              case 'GENERAL.MTU':
+                info.mtu = arr[1].trim()
+                break
+              case 'GENERAL.STATE':
+                info.state = arr[1].trim()
+                break
+              case 'GENERAL.CONNECTION':
+                info.Ssid = arr[1].trim()
+                break
+              case 'IP4.ADDRESS[1]':
+                info.address = arr[1].trim()
+                break
+              case 'IP4.GATEWAY':
+                info.gateway = arr[1].trim()
+                break
+              default:
+                break
+            }
           })
+        this.info = info
       }
       if (this.pending) {
         this.refreshInfo()
@@ -164,7 +195,13 @@ class Network extends require('events') {
   }
 
   destroy() {
-
+    clearTimeout(this.refreshTimer)
+    if (this.monitor && !this.monitor.killed) this.monitor.kill()
+    if (this.readline) this.readline.close()
+    this.pending = false
+    this.refreshing = false
+    this.monitor = undefined
+    this.readline = undefined
   }
 
   view() {

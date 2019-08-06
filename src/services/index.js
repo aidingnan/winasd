@@ -195,7 +195,7 @@ class Provisioning extends BaseState {
     console.log('run in provision state')
     this.ctx.bled = new Bled(this.ctx)
     this.ctx.bled.on('connect', () => {})
-
+    this.ctx.localAuth = new LocalAuth(this.ctx)
     this.ctx.net = new NetworkManager(this.ctx)
     this.ctx.net.on('started', state => {
       if (state !== 70) {
