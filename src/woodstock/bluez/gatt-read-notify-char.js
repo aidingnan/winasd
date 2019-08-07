@@ -1,9 +1,8 @@
 const EventEmitter = require('events')
-
-const debug = require('debug')('gatt-read-notify')
-
 const GattCharacteristic1 = require('./gatt-characteristic1')
 const { ARRAY } = require('../lib/dbus-types')
+
+const debug = require('debug')('gatt:read-notify')
 
 class ReadNotifyCharacteristic extends GattCharacteristic1(EventEmitter) {
   constructor (opts) {
@@ -38,6 +37,7 @@ class ReadNotifyCharacteristic extends GattCharacteristic1(EventEmitter) {
     "device": Object Device (Server only)
   */
   ReadValue (opts, callback) {
+    debug('ReadValue', opts)
     opts = this.parseOpts(opts)
     let offset = opts.offset || 0
     let val = this.Value.slice(offset)
@@ -46,6 +46,7 @@ class ReadNotifyCharacteristic extends GattCharacteristic1(EventEmitter) {
 
   // val is either an integer array or a buffer
   update (val) {
+    debug('update', val)
     if (Array.isArray(val) && val.every(b => Number.isInteger(b) && b >= 0 && b < 256)) {
       this.Value = val
     } else if (Buffer.isBuffer(val)) {
