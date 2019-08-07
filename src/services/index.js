@@ -1,4 +1,9 @@
-/* * @Author: JackYang  * @Date: 2019-07-10 16:32:51  * @Last Modified by:   JackYang  * @Last Modified time: 2019-07-10 16:32:51  */
+/*
+ * @Author: JackYang
+ * @Date: 2019-07-10 16:32:51
+ * @Last Modified by:   JackYang
+ * @Last Modified time: 2019-07-10 16:32:51
+*/
 const fs = require('fs')
 const path = require('path')
 const UUID = require('uuid')
@@ -34,9 +39,7 @@ const {
 
 const ProvisionFile = path.join(Config.storage.roots.p, Config.storage.files.provision)
 
-const NewError = (message, code) => Object.assign(new Error(message), {
-  code
-})
+const NewError = (message, code) => Object.assign(new Error(message), { code })
 
 const EPERSISTENT = NewError('mount persistent partition failed', 'EPERSISTENT')
 const EUSERSTORE = NewError('user store load failed', 'EUSERSTORE')
@@ -44,25 +47,27 @@ const EDEVICE = NewError('device info load failed', 'EDEVICE')
 const EBOUND = NewError('device cloud bound with error signature', 'EBOUND')
 const EECCINIT = NewError('ecc init error', 'EECCINIT')
 const EECCPRESET = NewError('ecc preset error', 'EECCPRESET')
+const EApp404 = NewError('app not started', 'EAPP404')
+const ERace = NewError('operation in progress', 'ERACE')
 
 class BaseState extends State {
-  requestBind(...args) {
+  requestBind (...args) {
     if (args.length) {
       args.pop()(new Error('error state'))
     }
   }
 
-  requestUnbind(...args) {
+  requestUnbind (...args) {
     if (args.length) {
       args.pop()(new Error('error state'))
     }
   }
 
-  debug(...args) {
+  debug (...args) {
     debug2(...args)
   }
 
-  name() {
+  name () {
     return this.constructor.name
   }
 }
@@ -74,15 +79,14 @@ class BaseState extends State {
  * load bound user if exist
  */
 class Prepare extends BaseState {
-  enter() {
+  enter () {
     // mount and init persistence partition
-    this.initPersistenceAsync().then(() => {
-      Config.system.withoutEcc ? this.startupWithoutEcc() :
-        this.startup()
-    }, err => this.setState('Failed', EPERSISTENT))
+    this.initPersistenceAsync()
+      .then(() => Config.system.withoutEcc ? this.startupWithoutEcc() : this.startup())
+      .catch(err => err && this.setState('Failed', EPERSISTENT))
   }
 
-  async initPersistenceAsync() {
+  async initPersistenceAsync () {
     await rimrafAsync(Config.storage.dirs.tmpDir)
     await mkdirpAsync(Config.storage.dirs.tmpDir)
     await mkdirpAsync(Config.storage.dirs.isoDir)
@@ -92,7 +96,7 @@ class Prepare extends BaseState {
   }
 
   // skip init ecc
-  startupWithoutEcc() {
+  startupWithoutEcc () {
     if (!fs.existsSync(ProvisionFile)) {
       return this.setState('Provisioning')
     } else {
@@ -109,7 +113,7 @@ class Prepare extends BaseState {
   }
 
   // init ecc first
-  startup() {
+  startup () {
     this.initLedService((err, ledService) => { // ignore led start failed
       if (err) console.log('LED Service Start Error')
       this.ctx.ledService = ledService
@@ -130,8 +134,8 @@ class Prepare extends BaseState {
     })
   }
 
-  initLedService(callback) {
-    let ledService = new LED(Config.led.bus, Config.led.addr) // start led service
+  initLedService (callback) {
+    const ledService = new LED(Config.led.bus, Config.led.addr) // start led service
     ledService.on('StateEntered', state => {
       if (state === 'Err') {
         ledService.removeAllListeners()
@@ -143,8 +147,8 @@ class Prepare extends BaseState {
     })
   }
 
-  loadUserStore(callback) {
-    let userStore = new DataStore({
+  loadUserStore (callback) {
+    const userStore = new DataStore({
       isArray: false,
       file: path.join(Config.storage.dirs.bound, Config.storage.files.boundUser),
       tmpDir: path.join(Config.storage.dirs.tmpDir)
@@ -155,13 +159,14 @@ class Prepare extends BaseState {
     })
 
     userStore.once('StateEntered', state => {
-      if (state === 'Failed')
+      if (state === 'Failed') {
         return callback(userStore.state.err)
+      }
     })
   }
 
   // read SN...
-  loadDevice(callback) {
+  loadDevice (callback) {
     if (Config.system.withoutEcc) {
       fs.readFile(path.join(Config.storage.dirs.device, 'deviceSN'), (err, data) => {
         if (err) return callback(err)
@@ -175,8 +180,10 @@ class Prepare extends BaseState {
         if (err) return callback(err)
         // read hostname
         fs.readFile(path.join(Config.storage.roots.p, 'init', 'hostname'), (err, data) => {
+          if (err) return callback(err)
           if (data) hostname = data.toString().trim()
           fs.readFile(path.join(Config.storage.roots.p, 'init', 'usn'), (err, data) => {
+            if (err) return callback(err)
             if (data) usn = data.toString().trim()
             return callback(null, {
               sn: (process.env.NODE_ENV.startsWith('test') ? 'test_' : '') + sn,
@@ -191,7 +198,7 @@ class Prepare extends BaseState {
 }
 
 class Provisioning extends BaseState {
-  enter() {
+  enter () {
     console.log('run in provision state')
     this.ctx.bled = new Bled(this.ctx)
     this.ctx.bled.on('connect', () => {})
@@ -218,13 +225,13 @@ class Provisioning extends BaseState {
 }
 
 class Starting extends BaseState {
-  enter() {
+  enter () {
     console.log('run in normal state')
     this.ctx.localAuth = new LocalAuth(this.ctx)
     this.ctx.bled = new Bled(this.ctx)
     this.ctx.bled.on('connect', () => {
     })
-    
+
     this.ctx.net = new NetworkManager(this.ctx)
     this.ctx.net.on('started', state => {
       console.log('NetworkManager Started: ', state)
@@ -238,11 +245,11 @@ class Starting extends BaseState {
 
     this.ctx.bled.on('BLE_DEVICE_DISCONNECTED', () => {
       if (this.ctx.localAuth) {
-        let bound = this.ctx.state.name() === 'Bound'
+        const bound = this.ctx.state.name() === 'Bound'
         this.ctx.ledService.runGroup(bound ? 'normal' : 'unbind')
       }
     }) // stop localAuth
-    
+
     if (this.ctx.userStore.data) {
       this.setState('Bound')
     } else {
@@ -253,13 +260,13 @@ class Starting extends BaseState {
 
 /**
  * start channel service, on ***ChannelConnected*** event
- * 
+ *
  * if cloud return someone bound this device, that means unbind state error.
- * 
+ *
  * maybe bound job had not finished. verify the signature, do bind if verifyed
  */
 class Unbind extends BaseState {
-  enter() {
+  enter () {
     child.exec('sync', () => {})
     this.ctx.channel = new Channel(this.ctx)
     this.ctx.ledService.runGroup('unbind')
@@ -282,7 +289,7 @@ class Unbind extends BaseState {
   }
 
   // request to cloud, save userinfo if success
-  requestBind(encrypted, callback) {
+  requestBind (encrypted, callback) {
     if (this.bindingFlag) return process.nextTick(() => callback(new Error('already in binding state')))
     if (!this.ctx.token) return process.nextTick(() => callback(new Error('Winas Net Error')))
     this.bindingFlag = true
@@ -296,7 +303,7 @@ class Unbind extends BaseState {
           this.bindingFlag = false
           return callback(err)
         }
-        let user = {
+        const user = {
           id: data.data.id,
           username: data.data.username,
           phone: data.data.username
@@ -306,7 +313,7 @@ class Unbind extends BaseState {
     })
   }
 
-  validateBlock(callback) {
+  validateBlock (callback) {
     fs.exists('/sys/block/sda/size', exists => {
       if (!exists) return callback(new Error('sda not found'))
       fs.readFile('/sys/block/sda/size', (err, data) => {
@@ -316,7 +323,7 @@ class Unbind extends BaseState {
     })
   }
 
-  exit() {
+  exit () {
     this.ctx.channel.removeAllListeners()
     this.ctx.channel.destroy()
     this.ctx.channel = undefined
@@ -332,28 +339,30 @@ class Unbind extends BaseState {
  * ```
  */
 class Binding extends BaseState {
-  enter(user, volume, callback = () => {}) {
+  enter (user, volume, callback = () => {}) {
     this.start(user, volume)
-      .then(() => (process.nextTick(() => callback(null, user)), this.setState('Bound')))
+      .then(() => {
+        process.nextTick(() => callback(null, user))
+        this.setState('Bound')
+      })
       .catch(e => {
-        process.nextTick(() => 
+        process.nextTick(() =>
           callback(Object.assign(new Error('clean drive failed'), { code: 'EBINDING' })))
         this.setState('Failed', Object.assign(e, { code: 'EBINDING' }))
       })
   }
 
-  async start(user, volume) {
-
+  async start (user, volume) {
     await this.cleanVolumeAsync(volume)
     // save user
     await new Promise((resolve, reject) => this.ctx.userStore.save(user, err => err ? reject(err) : resolve()))
     // refresh lifecycle
-    await new Promise((res, rej) => refresh(err => err ? rej(err) : res()))
+    await new Promise((resolve, reject) => refresh(err => err ? reject(err) : resolve()))
     // update ble advertisement
     this.ctx.bled.updateAdv()
   }
 
-  async cleanVolumeAsync(volume) {
+  async cleanVolumeAsync (volume) {
     try {
       await child.execAsync('umount -f /dev/sda')
     } catch (e) {
@@ -361,15 +370,16 @@ class Binding extends BaseState {
     }
 
     // FIXME:
-    if (!volume)
+    if (!volume) {
       console.log('[WARN] binding clean volume check failed: volume uuid not found')
-    
+    }
+
     const cmd = "btrfs fi show | grep -B 2 /dev/sda | grep Label | awk '{ print $4 }'"
     // check uuid
     const volUUID = (await child.execAsync(cmd)).toString().trim()
     // do nothing if already clean
     if (volUUID === volume) return console.log('Volume UUID match. skip mkfs')
-    
+
     await child.execAsync(`mkfs.btrfs -f -U ${volume || UUID.v4()} /dev/sda`)
 
     await child.execAsync('partprobe')
@@ -377,7 +387,7 @@ class Binding extends BaseState {
 }
 
 class Unbinding extends BaseState {
-  enter(volume) {
+  enter (volume) {
     this.doUnbind(volume)
       .then(() => this.setState('Unbind'))
       .catch(e => this.setState('Failed', Object.assign(e, {
@@ -385,32 +395,32 @@ class Unbinding extends BaseState {
       })))
   }
 
-  async doUnbind(volume) {
+  async doUnbind (volume) {
     // delete user info
     await new Promise((resolve, reject) => this.ctx.userStore.save(null, err => err ? reject(err) : resolve()))
     // set default device name, ignore error
-    await new Promise((res, rej) => Device.setDeviceName(Device.DEVICE_NAME, _ => res()))
+    await new Promise((resolve, reject) => Device.setDeviceName(Device.DEVICE_NAME, _ => resolve()))
 
     try {
       await this.cleanVolumeAsync(volume)
-    } catch(e) {
+    } catch (e) {
       console.log('[WARN] Clean Volume Failed: ', e.message)
     }
 
     // refresh lifecycle
-    await new Promise((res, rej) => refresh(err => err ? rej(err) : res()))
+    await new Promise((resolve, reject) => refresh(err => err ? reject(err) : resolve()))
     // update cloud device info
     this.ctx.deviceUpdate()
     // update ble advertisement
     this.ctx.bled.updateAdv()
   }
 
-  async cleanVolumeAsync(volume) {
+  async cleanVolumeAsync (volume) {
     if (!volume) throw new Error('volume uuid not found')
     try {
       await child.execAsync('umount -f /dev/sda')
-    } catch (e){
-      if (!e.message || !e.message.includes('not mounted')){
+    } catch (e) {
+      if (!e.message || !e.message.includes('not mounted')) {
         throw e
       }
     }
@@ -428,13 +438,13 @@ class Unbinding extends BaseState {
 
 /**
  * start channel service, on ***ChannelConnected*** event
- * 
+ *
  * if cloud has no user bound this device, that means bound state error.
- * 
+ *
  * maybe unbind job had not finished. verify the signature, do unbind if verifyed
  */
 class Bound extends BaseState {
-  enter() {
+  enter () {
     child.exec('sync', () => {})
     this.ctx.ledService.runGroup('normal')
     this.ctx.channel = new Channel(this.ctx)
@@ -453,7 +463,7 @@ class Bound extends BaseState {
           }
         })
       } else {
-        //ignore
+        // ignore
       }
     })
     this.ctx.winas = new Winas(this.ctx)
@@ -462,9 +472,9 @@ class Bound extends BaseState {
 
   // only from channel
   /**
-   * @param {object} message - pipe message 
+   * @param {object} message - pipe message
    */
-  requestUnbind(encrypted, callback) {
+  requestUnbind (encrypted, callback) {
     if (this.unbindFlag) return callback(new Error('error state'))
     if (!this.ctx.token) return callback(new Error('network error'))
     this.unbindFlag = true
@@ -478,7 +488,7 @@ class Bound extends BaseState {
     })
   }
 
-  exit() {
+  exit () {
     this.ctx.channel.removeAllListeners()
     this.ctx.channel.destroy()
     this.ctx.channel = undefined
@@ -488,7 +498,7 @@ class Bound extends BaseState {
 }
 
 class Failed extends BaseState {
-  enter(reason) {
+  enter (reason) {
     this.reason = reason
     console.log(reason)
     this.ctx.ledService.runGroup('error')
@@ -500,7 +510,7 @@ class Failed extends BaseState {
  * control all sub services
  */
 class AppService {
-  constructor() {
+  constructor () {
     this.config = Config
     this.upgrade = new Upgrade(this, Config.storage.dirs.tmpDir, Config.storage.dirs.isoDir)
 
@@ -518,14 +528,15 @@ class AppService {
     this.hostname = undefined
 
     Object.defineProperty(this, 'winas', {
-      get() {
+      get () {
         return this._winas
       },
-      set(x) {
+      set (x) {
         if (this._winas) {
           this._winas.removeAllListeners()
-          if (!this._winas.destroyed)
+          if (!this._winas.destroyed) {
             this._winas.destroy()
+          }
         }
         this._winas = x
         x && this._winas.on('Started', this.handleWinasStarted.bind(this))
@@ -534,10 +545,10 @@ class AppService {
     })
 
     Object.defineProperty(this, 'token', {
-      get() {
+      get () {
         return this._token
       },
-      set(x) {
+      set (x) {
         this._token = x
         this.winas && this.winas.sendMessage({
           type: 'token',
@@ -546,12 +557,12 @@ class AppService {
       }
     })
 
-    // initialize　all service and properties
+    // initialize all service and properties
     new Prepare(this)
   }
 
   // send token&&owner to winas while Winas started
-  handleWinasStarted() {
+  handleWinasStarted () {
     this.winas.sendMessage({
       type: 'token',
       data: this.token
@@ -572,52 +583,67 @@ class AppService {
 
   /**
    * handle messages form winas
-   * @param {object} message 
+   * @param {object} message
    * message.type
    * message.data .....
    */
-  handleWinasMessage(message) {
+  handleWinasMessage (message) {
     debug('FROM WINAS MESSAGE:\n', message)
   }
 
   // return current software mode
-  isBeta() {
+  isBeta () {
     return true
   }
 
   // return node path
-  nodePath() {
+  nodePath () {
     return this.config.system.globalNode ? 'node' : '/usr/bin/node'
   }
 
-  colorGroup() {
-    return this.state.name() === 'Unbind' ? 'unbind'
-      : this.state.name() === 'Bound' ? 'normal'
-      : this.state.name() === 'Failed' ? 'error'
-      : 'working'
+  colorGroup () {
+    return this.state.name() === 'Unbind'
+      ? 'unbind'
+      : this.state.name() === 'Bound'
+        ? 'normal'
+        : this.state.name() === 'Failed'
+          ? 'error'
+          : 'working'
   }
 
   // start winas
-  appStart(callback) {
+  appStart (callback) {
     if (!this.winas) return process.nextTick(() => callback(EApp404))
     if (this.operation) return process.nextTick(() => callback(ERace))
     this.operation = 'appStart'
     this.winas.startAsync()
-      .then(() => (this.operation = null, callback(null)))
-      .catch(e => (this.operation = null, callback(e)))
+      .then(() => {
+        this.operation = null
+        callback(null)
+      })
+      .catch(e => {
+        this.operation = null
+        callback(e)
+      })
   }
 
   // stop winas
-  appStop(callback) {
+  appStop (callback) {
     if (!this.winas) return process.nextTick(() => callback(EApp404))
     if (this.operation) return process.nextTick(() => callback(ERace))
     this.operation = 'appStop'
     this.winas.stopAsync()
-      .then(() => (this.operation = null, callback(null)))
-      .catch(e => (this.operation = null, callback(e)))
+      .then(() => {
+        this.operation = null
+        callback(null)
+      })
+      .catch(e => {
+        this.operation = null
+        callback(e)
+      })
   }
 
-  updateDeviceName(user, name, callback) {
+  updateDeviceName (user, name, callback) {
     Device.setDeviceName(name, (err, data) => {
       callback(err, data)
       this.deviceUpdate()
@@ -625,8 +651,8 @@ class AppService {
   }
 
   // send mqtt message to cloud if device update
-  deviceUpdate() {
-    this.channel && this.deviceSN && this.channel.publish(`device/${ this.deviceSN }/info`, JSON.stringify({
+  deviceUpdate () {
+    this.channel && this.deviceSN && this.channel.publish(`device/${this.deviceSN}/info`, JSON.stringify({
       lanIp: Device.NetworkAddr('lanip'),
       llIp: Device.NetworkAddr('linklocal'),
       version: Device.SoftwareVersion(),
@@ -634,41 +660,44 @@ class AppService {
     }))
   }
 
-  requestBind(...args) {
+  requestBind (...args) {
     this.state.requestBind(...args)
   }
 
-  requestUnbind(...args) {
+  requestUnbind (...args) {
     this.state.requestUnbind(...args)
   }
 
-  PATCH(user, props, callback) {
-    let op = props.op
-    if (!op || !['shutdown', 'reboot', 'root', 'unroot'].includes(op))
+  PATCH (user, props, callback) {
+    const op = props.op
+    if (!op || !['shutdown', 'reboot', 'root', 'unroot'].includes(op)) {
       return process.nextTick(() => callback(Object.assign(new Error('invalid op'), { status: 400 })))
-    switch(op) {
+    }
+    switch (op) {
       case 'shutdown': {
         return setTimeout(() => {
           child.exec('shutboot', () => {})
         }, 2000)
       }
-      case 'reboot':{
+      case 'reboot': {
         return setTimeout(() => {
           child.exec('reboot', () => {})
         }, 2000)
       }
       case 'root': {
         return child.exec('rockbian root', (err, stdout, stderr) => {
-          if (err ||stderr)
-            return callback(Object.assign(newError((err&&err.message) || stderr), { status: 400 }))
+          if (err || stderr) {
+            return callback(Object.assign(NewError((err && err.message) || stderr), { status: 400 }))
+          }
           child.exec('sleep 2; reboot', () => {})
           return callback(null)
         })
       }
       case 'unroot': {
         return child.exec('rockbian unroot', (err, stdout, stderr) => {
-          if (err ||stderr)
-            return callback(Object.assign(newError((err&&err.message) || stderr), { status: 400 }))
+          if (err || stderr) {
+            return callback(Object.assign(NewError((err && err.message) || stderr), { status: 400 }))
+          }
           child.exec('sleep 2; reboot', () => {})
           return callback(null)
         })
@@ -677,15 +706,15 @@ class AppService {
     return process.nextTick(() => callback(null))
   }
 
-  isRooted() {
-    try{
+  isRooted () {
+    try {
       return child.execSync('rockbian is-rooted').toString().startsWith('true')
-    } catch(e) {
+    } catch (e) {
       return false
     }
   }
 
-  view() {
+  view () {
     return {
       net: this.net && this.net.view(),
       ble: this.bled && this.bled.view(),
@@ -708,7 +737,7 @@ class AppService {
     }
   }
 
-  destroy() {
+  destroy () {
     if (this.winas) this.winas.destroy()
   }
 }
