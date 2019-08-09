@@ -1,8 +1,8 @@
 /*
  * @Author: JackYang
  * @Date: 2019-07-10 16:32:51
- * @Last Modified by:   JackYang
- * @Last Modified time: 2019-07-10 16:32:51
+ * @Last Modified by: JackYang
+ * @Last Modified time: 2019-08-09 16:35:25
 */
 const fs = require('fs')
 const path = require('path')
@@ -186,7 +186,7 @@ class Prepare extends BaseState {
             if (err) return callback(err)
             if (data) usn = data.toString().trim()
             return callback(null, {
-              sn: (process.env.NODE_ENV.startsWith('test') ? 'test_' : '') + sn,
+              sn: ((process.env.NODE_ENV && process.env.NODE_ENV.startsWith('test')) ? 'test_' : '') + sn,
               hostname,
               usn
             })

@@ -77,7 +77,7 @@ class Starting extends State {
       */
       env: Object.assign({}, process.env, {
         PATH: `/wisnuc/node/base/bin:${process.env.PATH}`,
-        NODE_ENV: process.env.WINAS_ENV ? process.env.WINAS_ENV : process.NODE_ENV,
+        NODE_ENV: process.env.WINAS_ENV ? process.env.WINAS_ENV : process.env.NODE_ENV,
         NODE_CONFIG_DIR: path.join(this.ctx.winasDir, 'config')
       }),
       stdio: ['ignore', 'inherit', 'inherit', 'ipc'] 

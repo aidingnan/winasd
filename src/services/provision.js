@@ -27,7 +27,7 @@ const snName = 'deviceSN'
 const caName = storageConf.files.caCert
 
 // For not ecc device , test environment
-const deviceSN = () => process.env.NODE_ENV.startsWith('test') ? 'test_' + UUID.v4().slice(5) : UUID.v4()
+const deviceSN = () => (process.env.NODE_ENV && process.env.NODE_ENV.startsWith('test')) ? 'test_' + UUID.v4().slice(5) : UUID.v4()
 
 class Failed extends State {
   enter(err) {
@@ -114,14 +114,14 @@ class PreBuild extends State {
 }
 
 class Provisioning extends State {
-  enter() {
+  enter () {
     let csrPath = path.join(certFolder, csrName)
     let crtPath = path.join(certFolder, crtName)
     this.req = request
       .post(provisionConf.address + '/sign')
       .send({
         csr: fs.readFileSync(csrPath).toString(),
-        type: process.env.NODE_ENV.startsWith('test') ? 'test' : 'production',
+        type: (process.env.NODE_ENV && process.env.NODE_ENV.startsWith('test')) ? 'test' : 'production',
         sn: this.ctx.sn
       })
     this.req
