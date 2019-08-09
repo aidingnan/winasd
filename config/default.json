@@ -5,11 +5,6 @@
     "region": "cn-north-1"
   },
   "upgrade": {
-    "address": "https://dingnan-upgrade.s3.cn-north-1.amazonaws.com.cn",
-    "fetch": {
-      "beta": "https://dingnan-upgrade.s3.cn-north-1.amazonaws.com.cn?list-type=2&prefix=beta/backus/&delimiter=/&max-keys=10000",
-      "release": "https://dingnan-upgrade.s3.cn-north-1.amazonaws.com.cn?list-type=2&prefix=release/backus/&delimiter=/&max-keys=10000"
-    },
     "version": "/etc/version"
   },
   "storage": {
@@ -20,13 +15,13 @@
       "vols": "/run/cowroot/root/vols"
     },
     "dirs": {
-      "certDir": "/run/cowroot/root/data/certificate",
-      "tmpDir": "/run/cowroot/root/data/tmp",
-      "isoDir": "/run/cowroot/root/data/iso",
-      "bleDir": "/run/cowroot/root/data/ble",
+      "certDir": "/run/cowroot/root/data/cache/certificate",
+      "tmpDir": "/run/cowroot/root/data/cache/tmp",
+      "isoDir": "/run/cowroot/root/data/cache/iso",
+      "bleDir": "/run/cowroot/root/data/cache/ble",
       "winasDir": "/root/winas",
-      "bound": "/run/cowroot/root/data/bound",
-      "device": "/run/cowroot/root/data/device"
+      "bound": "/run/cowroot/root/data/cache/bound",
+      "device": "/run/cowroot/root/data/cache/device"
     },
     "files": {
       "csr": "device.csr",
@@ -54,9 +49,9 @@
     "withoutEcc": false
   },
   "pipe": {
-    "baseURL": "https://test.aidingnan.com"
+    "baseURL": "https://aws-cn.aidingnan.com"
   },
   "cloud": {
-    "addr": "https://test.aidingnan.com"
+    "addr": "https://aws-cn.aidingnan.com"
   }
 }
