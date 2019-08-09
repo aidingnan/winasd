@@ -98,7 +98,7 @@ class BLED extends require('events') {
 
   handleLocalAuth(type, packet) {
     if (!this.ctx.localAuth) { // ctx not enter starting
-      this.update(type, { seq: packet.seq, error: Object.assign(new Error(`winasd in ${ this.ctx.state.name } state`), { code: 'ESTATE' }) })
+      return this.update(type, { seq: packet.seq, error: Object.assign(new Error(`winasd in ${ this.ctx.state.name } state`), { code: 'ESTATE' }) })
     }
     if (packet.action === 'req') {
       this.ctx.localAuth.request((err, data) => {

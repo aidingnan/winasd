@@ -2,11 +2,13 @@ const EventEmitter = require('events')
 const GattCharacteristic1 = require('./gatt-characteristic1')
 const { ARRAY } = require('../lib/dbus-types')
 
+const debug = require('debug')('gatt:write-read')
+
 /**
 This class provides a gatt characteristic with write capability.
 This class emit WriteValue event, along with options { device, link }
 
-offset is not supported 
+TODO offset is not supported 
 */
 class WriteCharacteristic extends GattCharacteristic1(EventEmitter) {
 
@@ -34,6 +36,7 @@ class WriteCharacteristic extends GattCharacteristic1(EventEmitter) {
   }
 
   readValue (opt, callback) {
+    debug('readValue', opt)
     opt = this.parse(opt)
     if (this.cache) {
       if (this.cache.opt.device === opt.device) {
@@ -46,6 +49,7 @@ class WriteCharacteristic extends GattCharacteristic1(EventEmitter) {
   }
 
   WriteValue (val, opt, callback) {
+    debug('WriteValue', val, opt)
     opt = this.parse(opt)
     this.cache = { val, opt }
     callback && callback() // reply first
