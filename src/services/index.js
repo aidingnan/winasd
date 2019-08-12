@@ -245,6 +245,7 @@ class Starting extends BaseState {
 
     this.ctx.bled.on('BLE_DEVICE_DISCONNECTED', () => {
       if (this.ctx.localAuth) {
+	this.ctx.localAuth.stop()
         const bound = this.ctx.state.name() === 'Bound'
         this.ctx.ledService.runGroup(bound ? 'normal' : 'unbind')
       }
