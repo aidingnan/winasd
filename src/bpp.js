@@ -1,15 +1,18 @@
+const path = require('path')
+process.chdir(path.dirname(__dirname))
+
 const Config = require('config')
 const initEcc = require('./lib/atecc')
 
-let index = process.argv.findIndex(x => x === '--code')
+let index = process.argv.findIndex(x => x === '--domain')
 if (index === -1 || index === process.argv.length - 1) {
-  console.log('usage: node src/bpp.js --code xxxx')
+  console.log('usage: node src/bpp.js --domain xxxx')
   process.exit(1)
 }
 
-const code = process.argv[index + 1]
-if (!code || !code.length || code.length > 128) {
-  console.log('invalid code')
+const domain = process.argv[index + 1]
+if (domain !== 'aws-cn' && domain !== 'test') {
+  console.log('invalid domain')
   process.exit(1)
 }
 
@@ -26,7 +29,7 @@ initEcc(Config.ecc.bus, (err, ecc) => {
         ecc.genCsr({
           o: 'Shanghai Dingnan Co., Ltd.',
           cn: 'IntelliDrive',
-          ou: code,
+          ou: domain,
           serialNumber: sn
         }, (err, der) => {
           if (err) throw err
