@@ -71,9 +71,12 @@ class BaseState extends State {
 
 /**
  * check all necessary constraints in this winasd.
- * make work dirs
- * start ecc service and led service
- * load bound user if exist
+ * 1. prepare dirs
+ * 2. load <vol>/data/init info, including sn, usn etc. TODO
+ * 3. load domain
+ * 4. cert and user are postponed to next state
+ * 5. start ecc service and led service ???
+ * 6. provision file is not used anymore
  */
 class Prerequisite extends BaseState {
   enter () {
