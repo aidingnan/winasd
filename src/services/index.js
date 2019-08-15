@@ -4,9 +4,12 @@
  * @Last Modified by: JackYang
  * @Last Modified time: 2019-08-09 16:35:25
 */
+
 const fs = require('fs')
 const path = require('path')
+const dns = require('dns')
 const UUID = require('uuid')
+const request = require('request')
 const Config = require('config')
 
 const Promise = require('bluebird')
@@ -60,6 +63,9 @@ const readFile = (file, callback) =>
 
 const noEcc = !!Config.system.withoutEcc
 
+// TODO
+let domain = 'aws-cn'
+
 class BaseState extends State {
   requestBind (...args) {
     if (args.length) {
@@ -82,6 +88,43 @@ class BaseState extends State {
   }
 }
 
+
+/**
+UNDEFINED
+
+from channel file
+
+const certFolder = storageConf.dirs.certDir
+const crtName = storageConf.files.cert
+const pkeyName = 'device.key'
+const caName = storageConf.files.caCert
+
+keyPath: path.join(certFolder, pkeyName),
+certPath: path.join(certFolder, crtName),
+caPath: path.join(certFolder, caName),
+*/
+const storageConf = Config.get('storage')
+const channelKey = path.join(storageConf.dirs.certDir, 'device.key')
+const channelCert = path.join(storageConf.dirs.certDir, storageConf.files.cert)
+const channelCaCert = path.join(storageConf.dirs.certDir, storageConf.files.caCert)
+
+const awsCA = `
+-----BEGIN CERTIFICATE-----
+MIIBtjCCAVugAwIBAgITBmyf1XSXNmY/Owua2eiedgPySjAKBggqhkjOPQQDAjA5
+MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6b24g
+Um9vdCBDQSAzMB4XDTE1MDUyNjAwMDAwMFoXDTQwMDUyNjAwMDAwMFowOTELMAkG
+A1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEZMBcGA1UEAxMQQW1hem9uIFJvb3Qg
+Q0EgMzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABCmXp8ZBf8ANm+gBG1bG8lKl
+ui2yEujSLtf6ycXYqm0fc4E7O5hrOXwzpcVOho6AF2hiRVd9RFgdszflZwjrZt6j
+QjBAMA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgGGMB0GA1UdDgQWBBSr
+ttvXBp43rDCGB5Fwx5zEGbF4wDAKBggqhkjOPQQDAgNJADBGAiEA4IWSoxe3jfkr
+BqWTrBqYaGFy+uGh0PsceGCmQ5nFuMQCIQCcAu/xlJyzlvnrxir4tiz+OpAUFteM
+YyRIHN8wfdVoOw==
+-----END CERTIFICATE-----
+`
+
+fs.writeFileSync(channelCaCert, awsCA)
+
 /**
  * check all necessary constraints in this winasd.
  * 1. prepare dirs
@@ -98,40 +141,38 @@ class Prerequisite extends BaseState {
 
     // target 1: prepare folders
     let count = 5
+
     remkdirp(tmpDir, err => (error |= err, !--count && next()))
     mkdirp(isoDir, err => (error |= err, !--count && next()))
     mkdirp(certDir, err => (error |= err, !--count && next()))
     mkdirp(bound, err => (error |= err, !--count && next()))
     mkdirp(device, err => (error |= err, !--count && next()))
 
-    // the original logic is
-    // if no ecc, then skip init ec and led, which is weird TODO
-/*
-    const next = () => error
-      ? this.setState('Failed', EPERSISTENT)
-      : noEcc ? this.startupWithoutEcc() : this.startup()
-*/
-
     const next = () => {
       if (error) return this.setState('Failed', EPERISTENT)
       error = null
+      let certExists
 
+      // both fstat cert +1
       // ecc: led, ecc, user, sn (deviceSN), hostname, usn, 6
       // no ecc: user, sn (deviceSN) by device file, 2
-      count = noEcc ? 2 : 6
+      count = noEcc ? 3 : 7
 
       !noEcc && this.initLed((err, led) => {
         err ? error |= err : this.ctx.ledService = led
+        console.log('led ready', count)
         if (!--count) nextNext()
       })
 
       !noEcc && this.initEcc((err, ecc) => {
         err ? error |= err : this.ctx.ecc = ecc
+        console.log('ecc ready', count)
         if (!--count) nextNext()
       })
 
-      this.loadUserStore((err, userStore) => {
+      this.initUserStore((err, userStore) => {
         err ? error |= err : this.ctx.userStore = userStore
+        console.log('user store ready', !!userStore.data, count)
         if (!--count) nextNext()
       })
 
@@ -144,69 +185,35 @@ class Prerequisite extends BaseState {
 
       !noEcc && readFile(path.join(p, 'init', 'sn'), (err, sn) => {
         err ? error |= err : this.ctx.deviceSN = sn
+        console.log(`(hardware) sn: ${sn}`, count)
         if (!--count) nextNext()
       })
 
       !noEcc && readFile(path.join(p, 'init', 'usn'), (err, usn) => {
         err ? error |= err : this.ctx.usn = usn
+        console.log(`usn ${usn}`, count)
         if (!--count) nextNext()
       })
 
       !noEcc && readFile(path.join(p, 'init', 'hostname'), (err, hostname) => {
         err ? error |= err : this.ctx.hostname = hostname
+        console.log(`hostname ${hostname}`, count)
         if (!--count) nextNext()
       })
 
-      const nextNext = () => {
-        if (error) return this.setState('Failed', error)
-
-        console.log('*******************************')
-      }
-    }
-  }
-
-  // skip init ecc
-  startupWithoutEcc () {
-/*
-    if (!fs.existsSync(ProvisionFile)) {
-      console.log(DD, 'entering Provisioning state')
-      return this.setState('Provisioning')
-    } else {
-*/
-      this.loadUserStore((err, userStore) => {
-        if (err) return this.setState('Failed', EUSERSTORE)
-        this.loadDevice((err, device) => {
-          if (err) return this.setState('Failed', EDEVICE)
-          this.ctx.userStore = userStore // bound user info
-          this.ctx.deviceSN = device.sn // deviceSN
-          this.setState('Starting')
-        })
+      // TODO only one???
+      fs.stat(channelCert, (err, stats) => {
+        err ? error |= err : certExists = true
+        console.log(`certExists`, !!stats, count)
+        if (!--count) nextNext()
       })
-/*
-    }
-*/
-  }
 
-  // init ecc first
-  startup () {
-    this.initLedService((err, ledService) => { // ignore led start failed
-      if (err) console.log('LED Service Start Error')
-      this.ctx.ledService = ledService
-      initEcc(Config.ecc.bus, (err, ecc) => {
-        if (err) return this.setState('Failed', EECCINIT)
-        ecc.preset(e => {
-          if (e) return this.setState('Failed', EECCPRESET)
-          this.ctx.ecc = ecc
-          this.loadDevice((err, { sn, hostname, usn }) => { // provision need
-            if (err) return this.setState('Failed', EDEVICE)
-            this.ctx.deviceSN = sn
-            this.ctx.hostname = hostname
-            this.ctx.usn = usn
-            this.startupWithoutEcc()
-          })
-        })
-      })
-    })
+      const nextNext = () => error
+        ? this.setState('Failed', error)
+        : certExists 
+          ? this.setState(!!this.ctx.userStore.data ? 'Bound' : 'Unbound')
+          : this.setState('Pending')
+    }
   }
 
   initEcc (callback) {
@@ -218,13 +225,14 @@ class Prerequisite extends BaseState {
   }
 
   initLed (callback) {
-    const ledService = new LED(Config.led.bus, Config.led.addr) // start led service
+    const ledService = new LED(Config.led.bus, Config.led.addr)
     ledService.once('StateEntered', state => state === 'Err'
       ? callback(ledService.state.error)
       : callback(null, ledService))
   }
 
-  loadUserStore (callback) {
+  // TODO mutual exclusive ???
+  initUserStore (callback) {
     const userStore = new DataStore({
       isArray: false,
       file: path.join(Config.storage.dirs.bound, Config.storage.files.boundUser),
@@ -241,36 +249,9 @@ class Prerequisite extends BaseState {
       }
     })
   }
-
-  // read deviceSN file if no ecc
-  // read hostname, usn otherwise TODO remove test_ prefix
-  loadDevice (callback) {
-    if (Config.system.withoutEcc) {
-      fs.readFile(path.join(Config.storage.dirs.device, 'deviceSN'), (err, data) => {
-        if (err) return callback(err)
-        return callback(null, {
-          sn: data.toString().trim()
-        })
-      })
-    } else {
-      let hostname, usn
-      this.ctx.ecc.serialNumber({}, (err, sn) => {
-        if (err) return callback(err)
-        // read hostname
-        fs.readFile(path.join(Config.storage.roots.p, 'init', 'hostname'), (err, data) => {
-          if (err) return callback(err)
-          if (data) hostname = data.toString().trim()
-          fs.readFile(path.join(Config.storage.roots.p, 'init', 'usn'), (err, data) => {
-            if (err) return callback(err)
-            if (data) usn = data.toString().trim()
-            return callback(null, { sn, hostname, usn })
-          })
-        })
-      })
-    }
-  }
 }
 
+// This state is not used now, the code won't work
 class Provisioning extends BaseState {
   enter () {
     console.log('run in provision state')
@@ -298,38 +279,44 @@ class Provisioning extends BaseState {
   }
 }
 
-class Starting extends BaseState {
+class Pending extends BaseState {
   enter () {
-    console.log('run in normal state')
-    this.ctx.localAuth = new LocalAuth(this.ctx)
-    this.ctx.bled = new Bled(this.ctx)
-    this.ctx.bled.on('connect', () => {
-    })
+    console.log('entering Pending state') 
 
-    this.ctx.net = new NetworkManager(this.ctx)
-    this.ctx.net.on('started', state => {
-      console.log('NetworkManager Started: ', state)
-      if (state !== 70) {
-        console.log('Device Network Disconnect', state)
-      }
-    })
-    this.ctx.net.on('connect', () => {
-      process.nextTick(() => this.ctx.channel && this.ctx.channel.connect())
-    })
-
-    this.ctx.bled.on('BLE_DEVICE_DISCONNECTED', () => {
-      if (this.ctx.localAuth) {
-	      this.ctx.localAuth.stop()
-        const bound = this.ctx.state.name() === 'Bound'
-        this.ctx.ledService.runGroup(bound ? 'normal' : 'unbind')
-      }
-    }) // stop localAuth
-
-    if (this.ctx.userStore.data) {
-      this.setState('Bound')
-    } else {
-      this.setState('Unbind')
-    }
+    // TODO dns does not work right after start, probably caused by net module.
+    // TODO write file safe way
+    // TODO save user file
+    const loop = () => request
+      .get(`https://${domain}.aidingnan.com/s/v1/station/${this.ctx.deviceSN}/cert`)
+      .then(res => fs.writeFile(channelCert, res.body.data.certPem, err => {
+        if (err) return this.setState('Failed')
+        this.ctx.channel = new Channel(this.ctx)
+        this.ctx.channel.once('ChannelConnected', (device, user) => {
+          const i = device.info
+          verify(this.ctx.ecc, i && i.signature, i && i.raw, (err, verified, fulfilled) => {
+            if (err || !verified) {
+              this.setState('Failed', EBOUND)
+            } else if (user && fulfilled) {
+              // fulfilled means we have already done all binding action 
+              // and all we need to do is saving user to file
+              this.setState('Bound')
+            } else if (user && !fulfilled) {
+              // unfulfilled means the cloud has accepted a binding request (since user)
+              // but we have not finished the binding action on station
+              this.setState('Binding', JSON.parse(i.raw).volume) 
+            } else if (!user && fulfilled) {
+              // fulfilled means we have already done all unbinding action
+              // and all we need to do is removing user file
+              this.setState('Unbound')
+            } else if (!user && !fulfilled) { 
+              // unfulfilled means the cloud has accepted an unbinding request (since no user)
+              // and we have not finished the unbinding action on station
+              this.setState('Unbinding', JSON.parse(i.raw).volume)
+            }
+          })
+        })
+      })).catch(err => setTimeout(() => loop(), 3000))
+    loop()
   }
 }
 
@@ -340,21 +327,23 @@ class Starting extends BaseState {
  *
  * maybe bound job had not finished. verify the signature, do bind if verifyed
  */
-class Unbind extends BaseState {
+class Unbound extends BaseState {
   enter () {
     child.exec('sync', () => {})
     this.ctx.channel = new Channel(this.ctx)
     this.ctx.ledService.runGroup('unbind')
     this.ctx.channel.once('ChannelConnected', (device, user) => {
+      const i = device.info
       if (user) { // mismatch
         console.log('****** cloud device bind state mismatch, check signature *****')
-        verify(this.ctx.ecc, device.info && device.info.signature, device.info && device.info.raw, (err, verifyed) => {
+        // TODO does fulfilled has no meaning ???
+        verify(this.ctx.ecc, i && i.signature, i && i.raw, (err, verifyed) => {
           if (err || !verifyed) {
             console.log('*** cloud device bind state mismatch, device in unbind ***')
             this.setState('Failed', EBOUND)
           } else {
             // verify func already parse json, so no error try catch here
-            this.setState('Binding', user, JSON.parse(device.info.raw).volume)
+            this.setState('Binding', user, JSON.parse(i.raw).volume)
           }
         })
       } else {
@@ -464,7 +453,7 @@ class Binding extends BaseState {
 class Unbinding extends BaseState {
   enter (volume) {
     this.doUnbind(volume)
-      .then(() => this.setState('Unbind'))
+      .then(() => this.setState('Unbound'))
       .catch(e => this.setState('Failed', Object.assign(e, {
         code: 'EUNBINDING'
       })))
@@ -523,18 +512,20 @@ class Bound extends BaseState {
     child.exec('sync', () => {})
     this.ctx.ledService.runGroup('normal')
     this.ctx.channel = new Channel(this.ctx)
-    this.ctx.channel.on('ChannelConnected', (device, user) => {
+    this.ctx.channel.once('ChannelConnected', (device, user) => {
+      const i = device.info
       if (!user) {
         // save user to user store
         this.ctx.userStore.save(user, console.log) // ignore error
 
         console.log('****** cloud device Bound state mismatch, check signature *****')
-        verify(this.ctx.ecc, device.info && device.info.signature, device.info && device.info.raw, (err, verifyed) => {
+        // TODO fulfilled meaningless ???
+        verify(this.ctx.ecc, i && i.signature, i && i.raw, (err, verifyed) => {
           if (err || !verifyed) {
             console.log('*** cloud device bound state mismatch, device in bound ***')
             this.setState('Failed', EBOUND)
           } else {
-            this.setState('Unbinding', JSON.parse(device.info.raw).volume)
+            this.setState('Unbinding', JSON.parse(i.raw).volume)
           }
         })
       } else {
@@ -632,6 +623,34 @@ class AppService {
       }
     })
 
+    this.localAuth = new LocalAuth(this)
+
+    this.bled = new Bled(this)
+    this.bled.on('connect', () => {
+        // TODO anything to do?
+      })
+
+    this.bled.on('BLE_DEVICE_DISCONNECTED', () => {
+      // TODO question, when to start?
+      if (this.localAuth) this.localAuth.stop()           
+      if (this.ledService) {
+        const bound = this.state.name() === 'Bound'
+        this.ledService.runGroup(bound ? 'normal' : 'unbind')
+      }
+    }) // stop localAuth
+
+    this.net = new NetworkManager(this)
+    this.net.on('started', state => {
+      console.log('NetworkManager Started: ', state)
+      if (state !== 70) {
+        console.log('Device Network Disconnect', state)
+      }
+    })
+
+    this.net.on('connect', () => {
+      process.nextTick(() => this.channel && this.channel.connect())
+    })
+
     // initialize all service and properties
     new Prerequisite(this)
   }
@@ -677,7 +696,7 @@ class AppService {
   }
 
   colorGroup () {
-    return this.state.name() === 'Unbind'
+    return this.state.name() === 'Unbound'
       ? 'unbind'
       : this.state.name() === 'Bound'
         ? 'normal'
@@ -819,8 +838,8 @@ class AppService {
 
 AppService.prototype.Prerequisite = Prerequisite
 AppService.prototype.Provisioning = Provisioning
-AppService.prototype.Starting = Starting
-AppService.prototype.Unbind = Unbind
+AppService.prototype.Pending = Pending
+AppService.prototype.Unbound = Unbound
 AppService.prototype.Binding = Binding
 AppService.prototype.Bound = Bound
 AppService.prototype.Unbinding = Unbinding
