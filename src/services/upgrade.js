@@ -28,7 +28,17 @@ const { SoftwareVersion } = require('../lib/device')
 
 const VolsPath = Config.storage.roots.vols
 
-// const isHighVersion = (current, next) => current < next
+const isHighVersion = (current, next) => {
+  if (!current || (current === '0.0.0') || !next) return false
+  let cu = current.split('.').map(x => parseInt(x))
+  let ne = next.split('.').map(x => parseInt(x))
+  for (let i = 0; i < cu.length; i++) {
+    if (i >= ne.length) return false
+    if (cu[i] > ne[i]) return false
+    if (cu[i] < ne[i]) return true
+  }
+  return true
+}
 
 const TMPVOL = 'e56e1a2e-9721-4060-87f4-0e6c3ba3574b'
 const WORKINGVOL = 'ebcc3123-127a-4d26-b083-38e8c0bf7f09'
@@ -215,20 +225,18 @@ class Upgrade extends event {
     
     let roots = []
     for (let i = 0; i < vols.length; i++) {
-      let tag, commit, parent, version, uuid
-      tag = await readFileWithoutErrorAsync(path.join(VolsPath, vols[i], '/boot/.tag'))
+      let commit, parent, version, uuid
       commit = await readFileWithoutErrorAsync(path.join(VolsPath, vols[i], '/boot/.commit'))
       parent = await readFileWithoutErrorAsync(path.join(VolsPath, vols[i], '/boot/.parent'))
-      version = (await readFileWithoutErrorAsync(path.join(VolsPath, vols[i], '/etc/version'))) || '0.0.0'
+      version = (await readFileWithoutErrorAsync(path.join(VolsPath, vols[i], '/etc/version')))
       uuid = vols[i]
-      roots.push({ tag, commit, parent, version, uuid })
+      roots.push({ commit, parent, version, uuid })
     }
 
     let current = {}
-    current.tag = await readFileWithoutErrorAsync('/boot/.tag')
     current.commit = await readFileWithoutErrorAsync('/boot/.commit')
     current.uuid = await readFileWithoutErrorAsync('/boot/.parent')
-    current.version = (await readFileWithoutErrorAsync('/etc/version')) || '0.0.0'
+    current.version = (await readFileWithoutErrorAsync('/etc/version'))
     return { current, roots }
   }
 

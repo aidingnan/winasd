@@ -137,12 +137,12 @@ class Working extends State {
 
 class Extracting extends State {
   enter(tmpPath) {
-    this.extractAsync(tmpPath, this.ctx.version)
+    this.extractAsync(tmpPath)
       .then(_ => this.setState('Finished', tmpPath))
       .catch(e => this.setState('Failed', e))
   }
 
-  async extractAsync(tmpPath, version) {
+  async extractAsync(tmpPath) {
     const tmpvol = path.join(Config.storage.roots.vols, TMPVOL)
     await rimrafAsync(tmpvol)
     await child.execAsync(`btrfs subvolume create ${ tmpvol }`)
@@ -153,7 +153,6 @@ class Extracting extends State {
       await child.execAsync(`chattr +c ${p}`)
     }
     await child.execAsync(`tar xf ${ tmpPath } -C ${ tmpvol } --zstd`)
-    await fs.writeFileAsync(path.join(tmpvol, 'etc', 'version'), version)
     const roUUID = UUID.v4()
     await child.execAsync(`btrfs subvolume snapshot -r ${tmpvol} ${ path.join(Config.storage.roots.vols, roUUID) }`)
     await rimrafAsync(tmpvol)
