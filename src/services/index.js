@@ -30,14 +30,11 @@ const initEcc = require('../lib/atecc')
 const LocalAuth = require('./localAuth')
 const Provision = require('./provision')
 const NetworkManager = require('./network')
-const {
-  reqBind,
-  reqUnbind,
-  verify,
-  refresh
-} = require('../lib/lifecycle')
+const { reqBind, reqUnbind, verify, refresh } = require('../lib/lifecycle')
 
 const ProvisionFile = path.join(Config.storage.roots.p, Config.storage.files.provision)
+
+const DD = '>>>>>>>>>>'
 
 const NewError = (message, code) => Object.assign(new Error(message), { code })
 
@@ -98,6 +95,7 @@ class Prepare extends BaseState {
   // skip init ecc
   startupWithoutEcc () {
     if (!fs.existsSync(ProvisionFile)) {
+      console.log(DD, 'entering Provisioning state')
       return this.setState('Provisioning')
     } else {
       this.loadUserStore((err, userStore) => {
