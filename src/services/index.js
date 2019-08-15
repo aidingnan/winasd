@@ -10,8 +10,11 @@ const UUID = require('uuid')
 const Config = require('config')
 
 const Promise = require('bluebird')
-const mkdirpAsync = Promise.promisify(require('mkdirp'))
-const rimrafAsync = Promise.promisify(require('rimraf'))
+const mkdirp = require('mkdirp')
+const rimraf = require('rimraf')
+const mkdirpAsync = Promise.promisify(mkdirp)
+const rimrafAsync = Promise.promisify(rimraf)
+
 const child = Promise.promisifyAll(require('child_process'))
 
 const debug = require('debug')('ws:app')
@@ -79,6 +82,8 @@ class BaseState extends State {
  * 6. provision file is not used anymore
  */
 class Prerequisite extends BaseState {
+
+/**
   enter () {
     // mount and init persistence partition
     this.initPersistenceAsync()
@@ -93,6 +98,21 @@ class Prerequisite extends BaseState {
     await mkdirpAsync(Config.storage.dirs.certDir)
     await mkdirpAsync(Config.storage.dirs.bound)
     await mkdirpAsync(Config.storage.dirs.device)
+  }
+*/
+
+  enter () {
+    let { tmpDir, isoDir, certDir, bound, device } = Config.storage.dirs
+    let noEcc = Config.system.withoutEcc
+    let count = 5, error
+    rimraf(tmpDir, err => err ? (error |= err, !--count && next()) : mkdirp(tmpDir, err => (error |= err, !--count && next())))
+    mkdirp(isoDir, err => (error |= err, !--count && next()))
+    mkdirp(certDir, err => (error |= err, !--count && next()))
+    mkdirp(bound, err => (error |= err, !--count && next()))
+    mkdirp(device, err => (error |= err, !--count && next()))
+    const next = () => error
+      ? this.setState('Failed', EPERSISTENT)
+      : noEcc ? this.startupWithoutEcc() : this.startup()
   }
 
   // skip init ecc
@@ -246,7 +266,7 @@ class Starting extends BaseState {
 
     this.ctx.bled.on('BLE_DEVICE_DISCONNECTED', () => {
       if (this.ctx.localAuth) {
-	this.ctx.localAuth.stop()
+	      this.ctx.localAuth.stop()
         const bound = this.ctx.state.name() === 'Bound'
         this.ctx.ledService.runGroup(bound ? 'normal' : 'unbind')
       }
