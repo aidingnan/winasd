@@ -50,6 +50,16 @@ const EECCPRESET = NewError('ecc preset error', 'EECCPRESET')
 const EApp404 = NewError('app not started', 'EAPP404')
 const ERace = NewError('operation in progress', 'ERACE')
 
+const remkdirp = (dir, callback) => 
+  rimraf(dir, err => err ? callback(err) : mkdirp(dir, callback))
+
+const readFile = (file, callback) => 
+  fs.readFile(file, (err, data) => err 
+    ? callback(err) 
+    : callback(null, data.toString().trim()))
+
+const noEcc = !!Config.system.withoutEcc
+
 class BaseState extends State {
   requestBind (...args) {
     if (args.length) {
@@ -76,51 +86,93 @@ class BaseState extends State {
  * check all necessary constraints in this winasd.
  * 1. prepare dirs
  * 2. load <vol>/data/init info, including sn, usn etc. TODO
- * 3. load domain
+ * 3. load domain TODO
  * 4. cert and user are postponed to next state
  * 5. start ecc service and led service ???
  * 6. provision file is not used anymore
  */
 class Prerequisite extends BaseState {
-
-/**
-  enter () {
-    // mount and init persistence partition
-    this.initPersistenceAsync()
-      .then(() => Config.system.withoutEcc ? this.startupWithoutEcc() : this.startup())
-      .catch(err => err && this.setState('Failed', EPERSISTENT))
-  }
-
-  async initPersistenceAsync () {
-    await rimrafAsync(Config.storage.dirs.tmpDir)
-    await mkdirpAsync(Config.storage.dirs.tmpDir)
-    await mkdirpAsync(Config.storage.dirs.isoDir)
-    await mkdirpAsync(Config.storage.dirs.certDir)
-    await mkdirpAsync(Config.storage.dirs.bound)
-    await mkdirpAsync(Config.storage.dirs.device)
-  }
-*/
-
   enter () {
     let { tmpDir, isoDir, certDir, bound, device } = Config.storage.dirs
-    let noEcc = Config.system.withoutEcc
-    let count = 5, error
-    rimraf(tmpDir, err => err ? (error |= err, !--count && next()) : mkdirp(tmpDir, err => (error |= err, !--count && next())))
+    let error = null
+
+    // target 1: prepare folders
+    let count = 5
+    remkdirp(tmpDir, err => (error |= err, !--count && next()))
     mkdirp(isoDir, err => (error |= err, !--count && next()))
     mkdirp(certDir, err => (error |= err, !--count && next()))
     mkdirp(bound, err => (error |= err, !--count && next()))
     mkdirp(device, err => (error |= err, !--count && next()))
+
+    // the original logic is
+    // if no ecc, then skip init ec and led, which is weird TODO
+/*
     const next = () => error
       ? this.setState('Failed', EPERSISTENT)
       : noEcc ? this.startupWithoutEcc() : this.startup()
+*/
+
+    const next = () => {
+      if (error) return this.setState('Failed', EPERISTENT)
+      error = null
+
+      // ecc: led, ecc, user, sn (deviceSN), hostname, usn, 6
+      // no ecc: user, sn (deviceSN) by device file, 2
+      count = noEcc ? 2 : 6
+
+      !noEcc && this.initLed((err, led) => {
+        err ? error |= err : this.ctx.ledService = led
+        if (!--count) nextNext()
+      })
+
+      !noEcc && this.initEcc((err, ecc) => {
+        err ? error |= err : this.ctx.ecc = ecc
+        if (!--count) nextNext()
+      })
+
+      this.loadUserStore((err, userStore) => {
+        err ? error |= err : this.ctx.userStore = userStore
+        if (!--count) nextNext()
+      })
+
+      noEcc && readFile(path.join(Config.storage.dirs.device, 'deviceSN'), (err, sn) => {
+        err ? error |= err : this.ctx.deviceSN = sn
+        if (!--count) nextNext()
+      })
+
+      const p = Config.storage.roots.p
+
+      !noEcc && readFile(path.join(p, 'init', 'sn'), (err, sn) => {
+        err ? error |= err : this.ctx.deviceSN = sn
+        if (!--count) nextNext()
+      })
+
+      !noEcc && readFile(path.join(p, 'init', 'usn'), (err, usn) => {
+        err ? error |= err : this.ctx.usn = usn
+        if (!--count) nextNext()
+      })
+
+      !noEcc && readFile(path.join(p, 'init', 'hostname'), (err, hostname) => {
+        err ? error |= err : this.ctx.hostname = hostname
+        if (!--count) nextNext()
+      })
+
+      const nextNext = () => {
+        if (error) return this.setState('Failed', error)
+
+        console.log('*******************************')
+      }
+    }
   }
 
   // skip init ecc
   startupWithoutEcc () {
+/*
     if (!fs.existsSync(ProvisionFile)) {
       console.log(DD, 'entering Provisioning state')
       return this.setState('Provisioning')
     } else {
+*/
       this.loadUserStore((err, userStore) => {
         if (err) return this.setState('Failed', EUSERSTORE)
         this.loadDevice((err, device) => {
@@ -130,7 +182,9 @@ class Prerequisite extends BaseState {
           this.setState('Starting')
         })
       })
+/*
     }
+*/
   }
 
   // init ecc first
@@ -155,17 +209,19 @@ class Prerequisite extends BaseState {
     })
   }
 
-  initLedService (callback) {
+  initEcc (callback) {
+    initEcc(Config.ecc.bus, (err, ecc) => err
+      ? callback(EECCINIT)
+      : ecc.preset(err => err 
+        ? callback(EECCPRESET) 
+        : callback(null, ecc)))
+  }
+
+  initLed (callback) {
     const ledService = new LED(Config.led.bus, Config.led.addr) // start led service
-    ledService.on('StateEntered', state => {
-      if (state === 'Err') {
-        ledService.removeAllListeners()
-        return callback(ledService.state.error)
-      } else if (state === 'StandBy') {
-        ledService.removeAllListeners()
-        return callback(null, ledService)
-      }
-    })
+    ledService.once('StateEntered', state => state === 'Err'
+      ? callback(ledService.state.error)
+      : callback(null, ledService))
   }
 
   loadUserStore (callback) {
@@ -186,7 +242,8 @@ class Prerequisite extends BaseState {
     })
   }
 
-  // read SN...
+  // read deviceSN file if no ecc
+  // read hostname, usn otherwise TODO remove test_ prefix
   loadDevice (callback) {
     if (Config.system.withoutEcc) {
       fs.readFile(path.join(Config.storage.dirs.device, 'deviceSN'), (err, data) => {
@@ -206,11 +263,7 @@ class Prerequisite extends BaseState {
           fs.readFile(path.join(Config.storage.roots.p, 'init', 'usn'), (err, data) => {
             if (err) return callback(err)
             if (data) usn = data.toString().trim()
-            return callback(null, {
-              sn: ((process.env.NODE_ENV && process.env.NODE_ENV.startsWith('test')) ? 'test_' : '') + sn,
-              hostname,
-              usn
-            })
+            return callback(null, { sn, hostname, usn })
           })
         })
       })
