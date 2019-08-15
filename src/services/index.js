@@ -75,7 +75,7 @@ class BaseState extends State {
  * start ecc service and led service
  * load bound user if exist
  */
-class Prepare extends BaseState {
+class Prerequisite extends BaseState {
   enter () {
     // mount and init persistence partition
     this.initPersistenceAsync()
@@ -557,7 +557,7 @@ class AppService {
     })
 
     // initialize all service and properties
-    new Prepare(this)
+    new Prerequisite(this)
   }
 
   // send token&&owner to winas while Winas started
@@ -741,7 +741,7 @@ class AppService {
   }
 }
 
-AppService.prototype.Prepare = Prepare
+AppService.prototype.Prerequisite = Prerequisite
 AppService.prototype.Provisioning = Provisioning
 AppService.prototype.Starting = Starting
 AppService.prototype.Unbind = Unbind
