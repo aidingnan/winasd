@@ -60,12 +60,14 @@ const deviceName = () => {
 const deviceName = () => _deviceName
 
 const TMPFILE = () => {
-  return path.join(Config.storage.dirs.tmpDir, UUID.v4())
+  // return path.join(Config.storage.dirs.tmpDir, UUID.v4())
+  return path.join(Config.volume.tmp, UUID.v4())
 }
 
 const setDeviceName = (name, callback) => {
-  let tmpfile = TMPFILE()
-  if (!name || !name.length) return process.nextTick(() => callback(null, null))
+  if (!name || !name.length) 
+    return process.nextTick(() => callback(null, null))
+  const tmpfile = TMPFILE()
   mkdirp(path.dirname(deviceNameP), err => err
     ? callback(err)
     : fs.writeFile(tmpfile, name, err => err
@@ -86,13 +88,17 @@ const deviceInfo = () => {
 }
 
 const deviceSN = () => {
-  let deviceSN 
-  try {
-    deviceSN = fs.readFileSync(path.join(Config.storage.dirs.device, 'deviceSN')).toString().trim()
-  } catch(e){
-    console.log('*****\ndeviceSN not found\n*****\n')
-  }
-  return deviceSN
+  /**
+    *  let deviceSN 
+    *  try {
+    *    deviceSN = fs.readFileSync(path.join(Config.storage.dirs.device, 'deviceSN')).toString().trim()
+    *  } catch(e){
+    *    console.log('*****\ndeviceSN not found\n*****\n')
+    *  }
+    *  return deviceSN
+    */
+
+  return _id 
 }
 
 const deviceUSN = () => {
