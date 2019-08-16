@@ -6,10 +6,12 @@ const Config = require('config')
 const request = require('superagent')
 const UUID = require('uuid')
 
-const storageConf = Config.get('storage')
-const certFolder = storageConf.dirs.certDir
-const tmpDir = storageConf.dirs.tmpDir
-const lifecycle = storageConf.files.lifecycle
+const certFolder = path.join(Config.volume.cloud, Config.cloud.domain, Config.cloud.id)
+const tmpDir = Config.volume.tmp
+
+// const storageConf = Config.get('storage')
+// const certFolder = storageConf.dirs.certDir
+// const tmpDir = storageConf.dirs.tmpDir
 const pkeyName = 'device.key'
 
 const createSignature = (ecc, op, volume, callback) => {
@@ -79,6 +81,9 @@ module.exports.reqBind = (ecc, encrypted, token, callback) => {
   })
 }
 
+/*
+callback: (err, verified, fulfilled) => {}
+*/
 module.exports.verify = (ecc, signature, raw, callback) => {
   if (!ecc || !signature || !raw) {
     return callback(new Error('invalid args'))
@@ -96,10 +101,13 @@ module.exports.verify = (ecc, signature, raw, callback) => {
     }
     readCounter((err, count) => {
       if (err) return callback(err)
-      if (raw.lifecycle === count || raw.lifecycle === count -1) {
-        return callback(null, true)
+      if (raw.lifecycle === count) {
+        callback(null, true, true)  // fulfilled
+      } else if (raw.lifecycle === count - 1) {
+        callback(null, true, false) // not fulfilled
+      } else {
+        callback(null, false)
       }
-      return callback(null, false)
     })
   })
 }

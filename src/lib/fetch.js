@@ -3,7 +3,7 @@ const xmlPaser = require('fast-xml-parser')
 const request = require('superagent')
 const Config = require('config')
 
-const CloudConf = Config.get('cloud')
+// const CloudConf = Config.get('cloud')
 
 const State = require('./state')
 
@@ -87,7 +87,8 @@ class Fetch extends EventEmitter {
 
   constructor (isBeta) {
     super() 
-    this.url = CloudConf.addr + '/s/v1/station/upgrade'
+    // this.url = CloudConf.addr + '/s/v1/station/upgrade'
+    this.url = `https://${Config.cloud.domain}.aidingnan.com/s/v1/station/upgrade`
     this.last = null
     new Working(this)
   }

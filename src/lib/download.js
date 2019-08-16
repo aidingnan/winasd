@@ -59,7 +59,8 @@ class Checking extends State {
       if (err) return this.setState('Failed', err)
       let rootfs = data.roots.find(x => x.version === dstName && !x.parent)
       if (rootfs) {
-        this.setState('Finished', path.join(Config.storage.roots.vols, rootfs.uuid))
+//        this.setState('Finished', path.join(Config.storage.roots.vols, rootfs.uuid))
+        this.setState('Finished', path.join(Config.volume.vols, rootfs.uuid))
       } else {
         this.setState('Working')
       }
@@ -142,8 +143,9 @@ class Extracting extends State {
       .catch(e => this.setState('Failed', e))
   }
 
-  async extractAsync(tmpPath) {
-    const tmpvol = path.join(Config.storage.roots.vols, TMPVOL)
+  async extractAsync(tmpPath, version) {
+    // const tmpvol = path.join(Config.storage.roots.vols, TMPVOL)
+    const tmpvol = path.join(Config.volume.vols, TMPVOL)
     await rimrafAsync(tmpvol)
     await child.execAsync(`btrfs subvolume create ${ tmpvol }`)
     const dirs = ['bin', 'etc', 'lib', 'root', 'sbin', 'usr', 'var']
@@ -154,7 +156,8 @@ class Extracting extends State {
     }
     await child.execAsync(`tar xf ${ tmpPath } -C ${ tmpvol } --zstd`)
     const roUUID = UUID.v4()
-    await child.execAsync(`btrfs subvolume snapshot -r ${tmpvol} ${ path.join(Config.storage.roots.vols, roUUID) }`)
+    // await child.execAsync(`btrfs subvolume snapshot -r ${tmpvol} ${ path.join(Config.storage.roots.vols, roUUID) }`)
+    await child.execAsync(`btrfs subvolume snapshot -r ${tmpvol} ${ path.join(Config.volume.vols, roUUID) }`)
     await rimrafAsync(tmpvol)
     await child.execAsync('sync')
   }
@@ -179,12 +182,12 @@ class Finished extends State {
 }
 
 class Download extends EventEmitter {
-  constructor(ctx, latest, tmpDir, dstDir) {
+  constructor(ctx, latest, tmpDir/*, dstDir */) {
     super()
     this.ctx = ctx
     this.latest = latest
     this.tmpDir = tmpDir
-    this.dstDir = dstDir
+    // this.dstDir = dstDir
     this.url = latest.url
     this.hash = latest.hash
     this.desc = latest.desc

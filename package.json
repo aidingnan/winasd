@@ -29,7 +29,7 @@
     "request": "^2.88.0",
     "rimraf": "^2.6.2",
     "safe-buffer": "^5.1.2",
-    "superagent": "^4.0.0-beta.5",
+    "superagent": "^5.1.0",
     "tar-stream": "^2.1.0",
     "uuid": "^3.3.2",
     "validator": "^11.1.0",

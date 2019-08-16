@@ -4,10 +4,15 @@ const fs = require('fs')
 const path = require('path')
 const child = require('child_process')
 
+const mkdirp = require('mkdirp')
 const Config = require('config')
 const UUID = require('uuid')
 
-const deviceNameP = path.join(Config.storage.dirs.device, Config.storage.files.deviceName)
+const deviceNameP = path.join(Config.volume.cloud,
+  Config.cloud.domain, Config.cloud.id, 'display-name')
+
+let __device_name = 'PocketDrive'
+try { __device_name = fs.readFileSync(deviceNameP).toString().trim() } catch (e) {}
 
 // default device name
 const DEVICE_NAME = 'PocketDrive'
@@ -39,6 +44,7 @@ const NetworkAddr = (type) => {
   }
 }
 
+/*
 const deviceName = () => {
   let name = DEVICE_NAME
   try {
@@ -46,21 +52,25 @@ const deviceName = () => {
   } catch(e) {}
   return name
 }
+*/
+const deviceName = () => __device_name
 
 const TMPFILE = () => {
-  return path.join(Config.storage.dirs.tmpDir, UUID.v4())
+  // return path.join(Config.storage.dirs.tmpDir, UUID.v4())
+  return path.join(Config.volume.tmp, UUID.v4())
 }
 
 const setDeviceName = (name, callback) => {
-  let tmpfile = TMPFILE()
-  if (!name || !name.length)
+  if (!name || !name.length) 
     return process.nextTick(() => callback(null, null))
-  fs.writeFile(tmpfile, name, err => {
-    if (err) return callback(err)
-    fs.rename(tmpfile, deviceNameP, err => 
-      err ? callback(err) 
-        : callback(null, null))
-  })
+  const tmpfile = TMPFILE()
+  mkdirp(path.dirname(deviceNameP), err => err
+    ? callback(err)
+    : fs.writeFile(tmpfile, name, err => err
+        ? callback(err)
+        : fs.rename(tmpfile, deviceNameP, err => err
+            ? callback(err)
+            : callback(null, null))))
 }
 
 const deviceInfo = () => {
@@ -74,13 +84,17 @@ const deviceInfo = () => {
 }
 
 const deviceSN = () => {
-  let deviceSN 
-  try {
-    deviceSN = fs.readFileSync(path.join(Config.storage.dirs.device, 'deviceSN')).toString().trim()
-  } catch(e){
-    console.log('*****\ndeviceSN not found\n*****\n')
-  }
-  return deviceSN
+  /**
+    *  let deviceSN 
+    *  try {
+    *    deviceSN = fs.readFileSync(path.join(Config.storage.dirs.device, 'deviceSN')).toString().trim()
+    *  } catch(e){
+    *    console.log('*****\ndeviceSN not found\n*****\n')
+    *  }
+    *  return deviceSN
+    */
+
+  return Config.cloud.id
 }
 
 const deviceUSN = () => {

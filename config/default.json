@@ -7,33 +7,6 @@
   "upgrade": {
     "version": "/etc/version"
   },
-  "storage": {
-    "roots": {
-      "p": "/run/cowroot/root/data",
-      "winas": "/root/winas",
-      "tmp": "",
-      "vols": "/run/cowroot/root/vols"
-    },
-    "dirs": {
-      "certDir": "/run/cowroot/root/data/cache/certificate",
-      "tmpDir": "/run/cowroot/root/data/cache/tmp",
-      "isoDir": "/run/cowroot/root/data/cache/iso",
-      "bleDir": "/run/cowroot/root/data/cache/ble",
-      "winasDir": "/root/winas",
-      "bound": "/run/cowroot/root/data/cache/bound",
-      "device": "/run/cowroot/root/data/cache/device"
-    },
-    "files": {
-      "csr": "device.csr",
-      "cert": "device.cert",
-      "caCert": "awsCA.pem",
-      "provision": "provisioned",
-      "boundUser": "boundUser.json",
-      "deviceName": "deviceName",
-      "lifecycle": "lifecycle",
-      "deviceSN": "deviceSN"
-    }
-  },
   "provision": {
     "address": "http://10.10.9.122:8080"
   },
@@ -51,7 +24,19 @@
   "pipe": {
     "baseURL": "https://aws-cn.aidingnan.com"
   },
+  "volume": {
+    "vols": "/run/cowroot/root/vols",
+    "init": "/run/cowroot/root/data/init",
+    "tmp": "/run/cowroot/root/data/winasd/tmp",
+    "cloud": "/run/cowroot/root/data/winasd/cloud"
+  },
   "cloud": {
-    "addr": "https://aws-cn.aidingnan.com"
+    "domain": "aws-cn",
+    "addr": "https://aws-cn.aidingnan.com",
+    "id": "",
+    "caIndex": 0,
+    "caList": [
+"-----BEGIN CERTIFICATE-----\nMIIBtjCCAVugAwIBAgITBmyf1XSXNmY/Owua2eiedgPySjAKBggqhkjOPQQDAjA5\nMQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6b24g\nUm9vdCBDQSAzMB4XDTE1MDUyNjAwMDAwMFoXDTQwMDUyNjAwMDAwMFowOTELMAkG\nA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEZMBcGA1UEAxMQQW1hem9uIFJvb3Qg\nQ0EgMzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABCmXp8ZBf8ANm+gBG1bG8lKl\nui2yEujSLtf6ycXYqm0fc4E7O5hrOXwzpcVOho6AF2hiRVd9RFgdszflZwjrZt6j\nQjBAMA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgGGMB0GA1UdDgQWBBSr\nttvXBp43rDCGB5Fwx5zEGbF4wDAKBggqhkjOPQQDAgNJADBGAiEA4IWSoxe3jfkr\nBqWTrBqYaGFy+uGh0PsceGCmQ5nFuMQCIQCcAu/xlJyzlvnrxir4tiz+OpAUFteM\nYyRIHN8wfdVoOw==\n-----END CERTIFICATE-----\n"
+    ]
   }
 }

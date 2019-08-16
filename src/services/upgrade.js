@@ -26,7 +26,8 @@ const State = require('../lib/state')
 const Download = require('../lib/download')
 const { SoftwareVersion } = require('../lib/device')
 
-const VolsPath = Config.storage.roots.vols
+// const VolsPath = Config.storage.roots.vols
+const VolsPath = Config.volume.vols
 
 const isHighVersion = (current, next) => {
   if (!current || (current === '0.0.0') || !next) return false
@@ -92,7 +93,8 @@ class Upgrading extends Base {
     if (!list.find(x => x === version)) {
       throw new Error('given version not found or not downloaded')
     }
-    const tmpvol = path.join(Config.storage.roots.vols, TMPVOL)
+    // const tmpvol = path.join(Config.storage.roots.vols, TMPVOL)
+    const tmpvol = path.join(Config.volume.vols, TMPVOL)
     await rimrafAsync(tmpvol)
     await child.execAsync(`btrfs subvolume create ${ tmpvol }`)
     const dirs = ['bin', 'etc', 'lib', 'root', 'sbin', 'usr', 'var']
@@ -104,7 +106,8 @@ class Upgrading extends Base {
     await child.execAsync(`tar xf ${ path.join(this.ctx.dir, version) } -C ${ tmpvol } --zstd`)
     await fs.writeFileAsync(path.join(tmpvol, 'etc', 'version'), version)
     const roUUID = UUID.v4()
-    await child.execAsync(`btrfs subvolume snapshot ${tmpvol} ${ path.join(Config.storage.roots.vols, roUUID) }`)
+    // await child.execAsync(`btrfs subvolume snapshot ${tmpvol} ${ path.join(Config.storage.roots.vols, roUUID) }`)
+    await child.execAsync(`btrfs subvolume snapshot ${tmpvol} ${ path.join(Config.volume.vols, roUUID) }`)
     await rimrafAsync(tmpvol)
     await child.execAsync(`cowroot-checkout -m ro ${roUUID}`)
     await child.execAsync('sync')
@@ -134,11 +137,11 @@ class Failed extends Base {
  * 然后下载新版本
  */
 class Upgrade extends event {
-  constructor(ctx, tmpDir, dir) {
+  constructor(ctx, tmpDir /*, dir */) {
     super()
     this.ctx = ctx
     this.tmpDir = tmpDir
-    this.dir = dir
+    // this.dir = dir
     // this.fetcher = new Fetch(true)
     // this.fetcher.on('Pending', this.onFetchData.bind(this))
     this.currentVersion = SoftwareVersion()
@@ -192,7 +195,7 @@ class Upgrade extends event {
   handleDownloadMessage(data) {
     if (this.downloader && !this.downloader.isFinished()) return // ignore message
     if (this.working) return
-    this.downloader = new Download(this, data, this.tmpDir, this.dir)
+    this.downloader = new Download(this, data, this.tmpDir /*, this.dir */)
   }
 
   handleCheckoutMessage(data) {

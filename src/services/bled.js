@@ -7,7 +7,7 @@ const Promise = require('bluebird')
 const child = Promise.promisifyAll(require('child_process'))
 
 /**
- * BLED 负责初始化 debus对象
+ * BLED 负责初始化 dbus对象
  * 由于ble和networkmanager 都使用debus提供服务，使用服务
  * 所以该模块负责初始化ble中的各种service以及NetworkManager对象
  * definition bluetooth packet
