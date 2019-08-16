@@ -7,33 +7,6 @@
   "upgrade": {
     "version": "/etc/version"
   },
-  "storage": {
-    "roots": {
-      "p": "/run/cowroot/root/data",
-      "winas": "/root/winas",
-      "tmp": "",
-      "vols": "/run/cowroot/root/vols"
-    },
-    "dirs": {
-      "certDir": "/run/cowroot/root/data/cache/certificate",
-      "tmpDir": "/run/cowroot/root/data/cache/tmp",
-      "isoDir": "/run/cowroot/root/data/cache/iso",
-      "bleDir": "/run/cowroot/root/data/cache/ble",
-      "winasDir": "/root/winas",
-      "bound": "/run/cowroot/root/data/cache/bound",
-      "device": "/run/cowroot/root/data/cache/device"
-    },
-    "files": {
-      "csr": "device.csr",
-      "cert": "device.cert",
-      "caCert": "awsCA.pem",
-      "provision": "provisioned",
-      "boundUser": "boundUser.json",
-      "deviceName": "deviceName",
-      "lifecycle": "lifecycle",
-      "deviceSN": "deviceSN"
-    }
-  },
   "provision": {
     "address": "http://10.10.9.122:8080"
   },

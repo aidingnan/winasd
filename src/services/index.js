@@ -34,13 +34,9 @@ const Upgrade = require('./upgrade')
 const Device = require('../lib/device')
 const initEcc = require('../lib/atecc')
 const LocalAuth = require('./localAuth')
-const Provision = require('./provision')
+// const Provision = require('./provision')
 const NetworkManager = require('./network')
 const { reqBind, reqUnbind, verify, refresh } = require('../lib/lifecycle')
-
-// const ProvisionFile = path.join(Config.storage.roots.p, Config.storage.files.provision)
-
-const DD = '>>>>>>>>>>'
 
 const NewError = (message, code) => Object.assign(new Error(message), { code })
 
@@ -62,9 +58,6 @@ const readFile = (file, callback) =>
     : callback(null, data.toString().trim()))
 
 const noEcc = !!Config.system.withoutEcc
-
-// TODO
-let domain = 'aws-cn'
 
 class BaseState extends State {
   requestBind (...args) {
@@ -90,6 +83,8 @@ class BaseState extends State {
 
 
 const homeDir = path.join(Config.volume.cloud, Config.cloud.domain, Config.cloud.id)
+const tmpDir = Config.volume.tmp
+
 const deviceCert = path.join(homeDir, 'device.crt')
 const deviceKey = path.join(homeDir, 'device.key')
 const caCert = path.join(homeDir, 'ca.crt')
@@ -105,10 +100,6 @@ const caCert = path.join(homeDir, 'ca.crt')
  */
 class Prerequisite extends BaseState {
   enter () {
-    // let { tmpDir, isoDir, certDir, bound, device } = Config.storage.dirs
-
-    const tmpDir = Config.volume.tmp
-
     let error = null
 
     // target 1: prepare folders
@@ -119,6 +110,7 @@ class Prerequisite extends BaseState {
 
     const next = () => {
       if (error) return this.setState('Failed', EPERISTENT)
+
       error = null
       let certExists
 
@@ -147,12 +139,6 @@ class Prerequisite extends BaseState {
 
       noEcc ? this.ctx.deviceSN = Config.cloud.id : null
 
-/**
-      noEcc && readFile(path.join(Config.storage.dirs.device, 'deviceSN'), (err, sn) => {
-        err ? error = error || err : this.ctx.deviceSN = sn
-        if (!--count) nextNext()
-      })
-*/
       const initDir = Config.volume.init
 
       !noEcc && readFile(path.join(initDir, 'sn'), (err, sn) => {
@@ -185,7 +171,6 @@ class Prerequisite extends BaseState {
         if (!--count) nextNext()
       })
 
-      // fs.writeFileSync(caCert, Config.cloud.caList[Config.cloud.caIndex])
       const caData = Config.cloud.caList[Config.cloud.caIndex]
       fs.writeFile(caCert, caData, err => {
         err ? error = error || err : null
@@ -239,6 +224,7 @@ class Prerequisite extends BaseState {
 }
 
 // This state is not used now, the code won't work
+/*
 class Provisioning extends BaseState {
   enter () {
     console.log('run in provision state')
@@ -266,6 +252,7 @@ class Provisioning extends BaseState {
     })
   }
 }
+*/
 
 class Pending extends BaseState {
   enter () {
@@ -280,27 +267,27 @@ class Pending extends BaseState {
         this.ctx.channel = new Channel(this.ctx)
         this.ctx.channel.once('ChannelConnected', (device, user) => {
           if (!device.info) {
-            this.setState('Failed', new Error('bad device info'))
+            return this.setState('Failed', new Error('bad device info'))
           }
 
           const { signature, raw } = device.info
           // sig and raw must be same truthy/falsy
           if (!!signature !== !!raw) {
-            this.setState('Failed', new Error('bad device info'))
+            return this.setState('Failed', new Error('bad device info'))
           }
 
           // sig and raw can only be null once (initial state, never bound)
           // in this case, owner must be null
-          if (sig === null) {
+          if (signature === null) {
             if (device.owner) {
-              this.setState('Failed', new Error('bad device info'))
+              return this.setState('Failed', new Error('bad device info'))
             } else {
               // nothing to be verified, unbound
-              this.setState('Unbound')
+              return this.setState('Unbound')
             }
           }
 
-          verify(this.ctx.ecc, info.signature, info.raw, (err, verified, fulfilled) => {
+          verify(this.ctx.ecc, signature, raw, (err, verified, fulfilled) => {
             if (err || !verified) {
               this.setState('Failed', EBOUND)
             } else if (device.owner && fulfilled) {
@@ -310,7 +297,7 @@ class Pending extends BaseState {
             } else if (device.owner && !fulfilled) {
               // unfulfilled means the cloud has accepted a binding request (since user)
               // but we have not finished the binding action on station
-              this.setState('Binding', JSON.parse(info.raw).volume)
+              this.setState('Binding', JSON.parse(raw).volume)
             } else if (!device.owner && fulfilled) {
               // fulfilled means we have already done all unbinding action
               // and all we need to do is removing user file
@@ -318,7 +305,7 @@ class Pending extends BaseState {
             } else if (!device.owner && !fulfilled) {
               // unfulfilled means the cloud has accepted an unbinding request (since no user)
               // and we have not finished the unbinding action on station
-              this.setState('Unbinding', JSON.parse(info.raw).volume)
+              this.setState('Unbinding', JSON.parse(raw).volume)
             }
           })
         })
@@ -596,7 +583,7 @@ class AppService {
   constructor () {
     this.config = Config
     // this.upgrade = new Upgrade(this, Config.storage.dirs.tmpDir, Config.storage.dirs.isoDir)
-    this.upgrade = new Upgrade(this, Config.volume.tmpDir, Config.storage.dirs.isoDir)
+    this.upgrade = new Upgrade(this, Config.volume.tmpDir /*, Config.storage.dirs.isoDir */)
 
     // services
     this.userStore = undefined // user store
@@ -855,7 +842,7 @@ class AppService {
 }
 
 AppService.prototype.Prerequisite = Prerequisite
-AppService.prototype.Provisioning = Provisioning
+// AppService.prototype.Provisioning = Provisioning
 AppService.prototype.Pending = Pending
 AppService.prototype.Unbound = Unbound
 AppService.prototype.Binding = Binding
