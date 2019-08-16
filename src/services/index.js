@@ -38,7 +38,7 @@ const Provision = require('./provision')
 const NetworkManager = require('./network')
 const { reqBind, reqUnbind, verify, refresh } = require('../lib/lifecycle')
 
-const ProvisionFile = path.join(Config.storage.roots.p, Config.storage.files.provision)
+// const ProvisionFile = path.join(Config.storage.roots.p, Config.storage.files.provision)
 
 const DD = '>>>>>>>>>>'
 
@@ -89,41 +89,12 @@ class BaseState extends State {
 }
 
 
-/**
-UNDEFINED
+const homeDir = path.join(Config.volume.cloud, Config.cloud.domain, Config.cloud.id)
+const deviceCert = path.join(homeDir, 'device.crt')
+const deviceKey = path.join(homeDir, 'device.key')
+const caCert = path.join(homeDir, 'ca.crt')
 
-from channel file
-
-const certFolder = storageConf.dirs.certDir
-const crtName = storageConf.files.cert
-const pkeyName = 'device.key'
-const caName = storageConf.files.caCert
-
-keyPath: path.join(certFolder, pkeyName),
-certPath: path.join(certFolder, crtName),
-caPath: path.join(certFolder, caName),
-*/
-const storageConf = Config.get('storage')
-const channelKey = path.join(storageConf.dirs.certDir, 'device.key')
-const channelCert = path.join(storageConf.dirs.certDir, storageConf.files.cert)
-const channelCaCert = path.join(storageConf.dirs.certDir, storageConf.files.caCert)
-
-const awsCA = `
------BEGIN CERTIFICATE-----
-MIIBtjCCAVugAwIBAgITBmyf1XSXNmY/Owua2eiedgPySjAKBggqhkjOPQQDAjA5
-MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6b24g
-Um9vdCBDQSAzMB4XDTE1MDUyNjAwMDAwMFoXDTQwMDUyNjAwMDAwMFowOTELMAkG
-A1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEZMBcGA1UEAxMQQW1hem9uIFJvb3Qg
-Q0EgMzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABCmXp8ZBf8ANm+gBG1bG8lKl
-ui2yEujSLtf6ycXYqm0fc4E7O5hrOXwzpcVOho6AF2hiRVd9RFgdszflZwjrZt6j
-QjBAMA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgGGMB0GA1UdDgQWBBSr
-ttvXBp43rDCGB5Fwx5zEGbF4wDAKBggqhkjOPQQDAgNJADBGAiEA4IWSoxe3jfkr
-BqWTrBqYaGFy+uGh0PsceGCmQ5nFuMQCIQCcAu/xlJyzlvnrxir4tiz+OpAUFteM
-YyRIHN8wfdVoOw==
------END CERTIFICATE-----
-`
-
-fs.writeFileSync(channelCaCert, awsCA)
+fs.writeFileSync(caCert, Config.cloud.caList[Config.cloud.caIndex])
 
 /**
  * check all necessary constraints in this winasd.
@@ -137,16 +108,16 @@ fs.writeFileSync(channelCaCert, awsCA)
 class Prerequisite extends BaseState {
   enter () {
     let { tmpDir, isoDir, certDir, bound, device } = Config.storage.dirs
+
+    const tmpDir = Config.volume.tmp
+
     let error = null
 
     // target 1: prepare folders
-    let count = 5
+    let count = 2
 
-    remkdirp(tmpDir, err => (error |= err, !--count && next()))
-    mkdirp(isoDir, err => (error |= err, !--count && next()))
-    mkdirp(certDir, err => (error |= err, !--count && next()))
-    mkdirp(bound, err => (error |= err, !--count && next()))
-    mkdirp(device, err => (error |= err, !--count && next()))
+    remkdirp(tmpDir, err => (error = error || err, !--count && next()))
+    mkdirp(homeDir, err => (error = error || err, !--count && next()))
 
     const next = () => {
       if (error) return this.setState('Failed', EPERISTENT)
@@ -156,54 +127,57 @@ class Prerequisite extends BaseState {
       // both fstat cert +1
       // ecc: led, ecc, user, sn (deviceSN), hostname, usn, 6
       // no ecc: user, sn (deviceSN) by device file, 2
-      count = noEcc ? 3 : 7
+      count = noEcc ? 2 : 7
 
       !noEcc && this.initLed((err, led) => {
-        err ? error |= err : this.ctx.ledService = led
+        err ? error = error || err : this.ctx.ledService = led
         console.log('led ready', count)
         if (!--count) nextNext()
       })
 
       !noEcc && this.initEcc((err, ecc) => {
-        err ? error |= err : this.ctx.ecc = ecc
+        err ? error = error || err : this.ctx.ecc = ecc
         console.log('ecc ready', count)
         if (!--count) nextNext()
       })
 
       this.initUserStore((err, userStore) => {
-        err ? error |= err : this.ctx.userStore = userStore
+        err ? error = error || err : this.ctx.userStore = userStore
         console.log('user store ready', !!userStore.data, count)
         if (!--count) nextNext()
       })
 
+      noEcc && this.ctx.deviceSN = Config.cloud.id
+
+/**
       noEcc && readFile(path.join(Config.storage.dirs.device, 'deviceSN'), (err, sn) => {
-        err ? error |= err : this.ctx.deviceSN = sn
+        err ? error = error || err : this.ctx.deviceSN = sn
         if (!--count) nextNext()
       })
+*/
+      const initDir = Config.volume.init
 
-      const p = Config.storage.roots.p
-
-      !noEcc && readFile(path.join(p, 'init', 'sn'), (err, sn) => {
-        err ? error |= err : this.ctx.deviceSN = sn
+      !noEcc && readFile(path.join(initDir, 'sn'), (err, sn) => {
+        err ? error = error || err : this.ctx.deviceSN = sn
         console.log(`(hardware) sn: ${sn}`, count)
         if (!--count) nextNext()
       })
 
-      !noEcc && readFile(path.join(p, 'init', 'usn'), (err, usn) => {
-        err ? error |= err : this.ctx.usn = usn
+      !noEcc && readFile(path.join(initDir, 'usn'), (err, usn) => {
+        err ? error = error || err : this.ctx.usn = usn
         console.log(`usn ${usn}`, count)
         if (!--count) nextNext()
       })
 
-      !noEcc && readFile(path.join(p, 'init', 'hostname'), (err, hostname) => {
-        err ? error |= err : this.ctx.hostname = hostname
+      !noEcc && readFile(path.join(initDir, 'hostname'), (err, hostname) => {
+        err ? error = error || err : this.ctx.hostname = hostname
         console.log(`hostname ${hostname}`, count)
         if (!--count) nextNext()
       })
 
       // TODO only one???
-      fs.stat(channelCert, (err, stats) => {
-        err ? error |= err : certExists = true
+      fs.stat(deviceCert, (err, stats) => {
+        err ? error = error || err : certExists = true
         console.log(`certExists`, !!stats, count)
         if (!--count) nextNext()
       })
@@ -235,8 +209,10 @@ class Prerequisite extends BaseState {
   initUserStore (callback) {
     const userStore = new DataStore({
       isArray: false,
-      file: path.join(Config.storage.dirs.bound, Config.storage.files.boundUser),
-      tmpDir: path.join(Config.storage.dirs.tmpDir)
+      // file: path.join(Config.storage.dirs.bound, Config.storage.files.boundUser),
+      // tmpDir: path.join(Config.storage.dirs.tmpDir)
+      file: path.join(homeDir, 'boundUser.json'),
+      tmpDir: path.join(Config.volume.tmp)
     })
 
     userStore.once('Update', () => {
@@ -288,7 +264,7 @@ class Pending extends BaseState {
     // TODO save user file
     const loop = () => request
       .get(`https://${domain}.aidingnan.com/s/v1/station/${this.ctx.deviceSN}/cert`)
-      .then(res => fs.writeFile(channelCert, res.body.data.certPem, err => {
+      .then(res => fs.writeFile(deviceCert, res.body.data.certPem, err => {
         if (err) return this.setState('Failed')
         this.ctx.channel = new Channel(this.ctx)
         this.ctx.channel.once('ChannelConnected', (device, user) => {
@@ -578,7 +554,8 @@ class Failed extends BaseState {
 class AppService {
   constructor () {
     this.config = Config
-    this.upgrade = new Upgrade(this, Config.storage.dirs.tmpDir, Config.storage.dirs.isoDir)
+    // this.upgrade = new Upgrade(this, Config.storage.dirs.tmpDir, Config.storage.dirs.isoDir)
+    this.upgrade = new Upgrade(this, Config.volume.tmpDir, Config.storage.dirs.isoDir)
 
     // services
     this.userStore = undefined // user store

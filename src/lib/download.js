@@ -183,12 +183,12 @@ class Finished extends State {
 }
 
 class Download extends EventEmitter {
-  constructor(ctx, latest, tmpDir, dstDir) {
+  constructor(ctx, latest, tmpDir/*, dstDir */) {
     super()
     this.ctx = ctx
     this.latest = latest
     this.tmpDir = tmpDir
-    this.dstDir = dstDir
+    // this.dstDir = dstDir
     this.url = latest.url
     this.hash = latest.hash
     this.desc = latest.desc

@@ -127,11 +127,11 @@ class Failed extends Base {
  * 然后下载新版本
  */
 class Upgrade extends event {
-  constructor(ctx, tmpDir, dir) {
+  constructor(ctx, tmpDir /*, dir */) {
     super()
     this.ctx = ctx
     this.tmpDir = tmpDir
-    this.dir = dir
+    // this.dir = dir
     // this.fetcher = new Fetch(true)
     // this.fetcher.on('Pending', this.onFetchData.bind(this))
     this.currentVersion = SoftwareVersion()
@@ -185,7 +185,7 @@ class Upgrade extends event {
   handleDownloadMessage(data) {
     if (this.downloader && !this.downloader.isFinished()) return // ignore message
     if (this.working) return
-    this.downloader = new Download(this, data, this.tmpDir, this.dir)
+    this.downloader = new Download(this, data, this.tmpDir /*, this.dir */)
   }
 
   handleCheckoutMessage(data) {
