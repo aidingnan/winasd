@@ -21,6 +21,9 @@
     "globalNode": true,
     "withoutEcc": false
   },
+  "winas": {
+    "dir": "/root/winas"
+  },
   "pipe": {
     "baseURL": "https://aws-cn.aidingnan.com"
   },

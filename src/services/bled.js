@@ -166,20 +166,34 @@ class BLED extends require('events') {
   }
 
   waitChannel(type, packet, callback) {
-    if (this.ctx.channel.status === 'Connected') {
-      return process.nextTick(() => callback(null))
-    } else {
-      let timeout
-      let timer = setTimeout(() => {
-        timeout = true
+    let ticks = 0
+    const tick = setInterval(() => {
+      if (this.ctx.state.name() === 'Unbound' && this.ctx.channel) {
+        clearInterval(tick) 
+
+        if (this.ctx.channel.status === 'Connected') {
+          return process.nextTick(() => callback(null))
+        } else {
+          let timeout
+          let timer = setTimeout(() => {
+            timeout = true
+            return callback(new Error('channel connect timeout'))
+          }, 60 * 1000)
+          this.ctx.channel.once('ChannelConnected', () => {
+            if (timeout) return
+            clearTimeout(timer)
+            return callback(null)
+          })
+        }
+
+      } else if (tick > 10) {
+        clearInterval(tick)
         return callback(new Error('channel connect timeout'))
-      }, 60 * 1000)
-      this.ctx.channel.once('ChannelConnected', () => {
-        if (timeout) return
-        clearTimeout(timer)
-        return callback(null)
-      })
-    }
+      } else {
+        ticks++
+      }
+    }, 3000)
+
   }
 
   async waitNTPAsync() {

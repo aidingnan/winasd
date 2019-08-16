@@ -6,6 +6,7 @@ const EventEmitter = require('events')
 
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
+const Config = require('config')
 
 const debug = require('debug')('ws:winas')
 
@@ -198,7 +199,8 @@ class Winas extends EventEmitter {
   constructor(ctx) {
     super()
     this.ctx = ctx
-    this.winasDir = ctx.config.storage.dirs.winasDir
+    // this.winasDir = ctx.config.storage.dirs.winasDir
+    this.winasDir = Config.winas.dir
 
     // mutual exclusive
     this.startCbs = []
