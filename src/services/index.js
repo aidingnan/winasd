@@ -9,7 +9,7 @@ const fs = require('fs')
 const path = require('path')
 const dns = require('dns')
 const UUID = require('uuid')
-const request = require('request')
+const request = require('superagent')
 const Config = require('config')
 
 const Promise = require('bluebird')
@@ -53,12 +53,12 @@ const EECCPRESET = NewError('ecc preset error', 'EECCPRESET')
 const EApp404 = NewError('app not started', 'EAPP404')
 const ERace = NewError('operation in progress', 'ERACE')
 
-const remkdirp = (dir, callback) => 
+const remkdirp = (dir, callback) =>
   rimraf(dir, err => err ? callback(err) : mkdirp(dir, callback))
 
-const readFile = (file, callback) => 
-  fs.readFile(file, (err, data) => err 
-    ? callback(err) 
+const readFile = (file, callback) =>
+  fs.readFile(file, (err, data) => err
+    ? callback(err)
     : callback(null, data.toString().trim()))
 
 const noEcc = !!Config.system.withoutEcc
@@ -94,8 +94,6 @@ const deviceCert = path.join(homeDir, 'device.crt')
 const deviceKey = path.join(homeDir, 'device.key')
 const caCert = path.join(homeDir, 'ca.crt')
 
-fs.writeFileSync(caCert, Config.cloud.caList[Config.cloud.caIndex])
-
 /**
  * check all necessary constraints in this winasd.
  * 1. prepare dirs
@@ -107,7 +105,7 @@ fs.writeFileSync(caCert, Config.cloud.caList[Config.cloud.caIndex])
  */
 class Prerequisite extends BaseState {
   enter () {
-    let { tmpDir, isoDir, certDir, bound, device } = Config.storage.dirs
+    // let { tmpDir, isoDir, certDir, bound, device } = Config.storage.dirs
 
     const tmpDir = Config.volume.tmp
 
@@ -124,10 +122,10 @@ class Prerequisite extends BaseState {
       error = null
       let certExists
 
-      // both fstat cert +1
+      // both fstat cert +1, write ca +1
       // ecc: led, ecc, user, sn (deviceSN), hostname, usn, 6
       // no ecc: user, sn (deviceSN) by device file, 2
-      count = noEcc ? 2 : 7
+      count = noEcc ? 3 : 8
 
       !noEcc && this.initLed((err, led) => {
         err ? error = error || err : this.ctx.ledService = led
@@ -147,7 +145,7 @@ class Prerequisite extends BaseState {
         if (!--count) nextNext()
       })
 
-      noEcc && this.ctx.deviceSN = Config.cloud.id
+      noEcc ? this.ctx.deviceSN = Config.cloud.id : null
 
 /**
       noEcc && readFile(path.join(Config.storage.dirs.device, 'deviceSN'), (err, sn) => {
@@ -175,16 +173,29 @@ class Prerequisite extends BaseState {
         if (!--count) nextNext()
       })
 
-      // TODO only one???
       fs.stat(deviceCert, (err, stats) => {
-        err ? error = error || err : certExists = true
-        console.log(`certExists`, !!stats, count)
+        if (err && err.code === 'ENOENT') {
+          certExists = false
+        } else if (err) {
+          error = error || err
+        } else {
+          certExists = true
+        }
+        if (typeof certExists === 'boolean') console.log(`certExists`, !!stats, count)
+        if (!--count) nextNext()
+      })
+
+      // fs.writeFileSync(caCert, Config.cloud.caList[Config.cloud.caIndex])
+      const caData = Config.cloud.caList[Config.cloud.caIndex]
+      fs.writeFile(caCert, caData, err => {
+        err ? error = error || err : null
+        console.log(`ca certificate written to ${caCert}`)
         if (!--count) nextNext()
       })
 
       const nextNext = () => error
         ? this.setState('Failed', error)
-        : certExists 
+        : certExists
           ? this.setState(!!this.ctx.userStore.data ? 'Bound' : 'Unbound')
           : this.setState('Pending')
     }
@@ -193,8 +204,8 @@ class Prerequisite extends BaseState {
   initEcc (callback) {
     initEcc(Config.ecc.bus, (err, ecc) => err
       ? callback(EECCINIT)
-      : ecc.preset(err => err 
-        ? callback(EECCPRESET) 
+      : ecc.preset(err => err
+        ? callback(EECCPRESET)
         : callback(null, ecc)))
   }
 
@@ -246,6 +257,7 @@ class Provisioning extends BaseState {
       this.ctx.provision = new Provision(this.ctx)
       this.ctx.provision.on('Finished', () => {
         this.ctx.provision.removeAllListeners()
+        this.ctx.provision.on('error', () => {})
         this.ctx.provision.destroy()
         this.ctx.provision = undefined
         child.exec('sync', () => {})
@@ -257,42 +269,69 @@ class Provisioning extends BaseState {
 
 class Pending extends BaseState {
   enter () {
-    console.log('entering Pending state') 
 
     // TODO dns does not work right after start, probably caused by net module.
     // TODO write file safe way
     // TODO save user file
     const loop = () => request
-      .get(`https://${domain}.aidingnan.com/s/v1/station/${this.ctx.deviceSN}/cert`)
+      .get(`https://${Config.cloud.domain}.aidingnan.com/s/v1/station/${Config.cloud.id}/cert`)
       .then(res => fs.writeFile(deviceCert, res.body.data.certPem, err => {
         if (err) return this.setState('Failed')
         this.ctx.channel = new Channel(this.ctx)
         this.ctx.channel.once('ChannelConnected', (device, user) => {
-          const i = device.info
-          verify(this.ctx.ecc, i && i.signature, i && i.raw, (err, verified, fulfilled) => {
+          if (!device.info) {
+            this.setState('Failed', new Error('bad device info'))
+          }
+
+          const { signature, raw } = device.info
+          // sig and raw must be same truthy/falsy
+          if (!!signature !== !!raw) {
+            this.setState('Failed', new Error('bad device info'))
+          }
+
+          // sig and raw can only be null once (initial state, never bound)
+          // in this case, owner must be null
+          if (sig === null) {
+            if (device.owner) {
+              this.setState('Failed', new Error('bad device info'))
+            } else {
+              // nothing to be verified, unbound
+              this.setState('Unbound')
+            }
+          }
+
+          verify(this.ctx.ecc, info.signature, info.raw, (err, verified, fulfilled) => {
             if (err || !verified) {
               this.setState('Failed', EBOUND)
-            } else if (user && fulfilled) {
-              // fulfilled means we have already done all binding action 
+            } else if (device.owner && fulfilled) {
+              // fulfilled means we have already done all binding action
               // and all we need to do is saving user to file
               this.setState('Bound')
-            } else if (user && !fulfilled) {
+            } else if (device.owner && !fulfilled) {
               // unfulfilled means the cloud has accepted a binding request (since user)
               // but we have not finished the binding action on station
-              this.setState('Binding', JSON.parse(i.raw).volume) 
-            } else if (!user && fulfilled) {
+              this.setState('Binding', JSON.parse(info.raw).volume)
+            } else if (!device.owner && fulfilled) {
               // fulfilled means we have already done all unbinding action
               // and all we need to do is removing user file
               this.setState('Unbound')
-            } else if (!user && !fulfilled) { 
+            } else if (!device.owner && !fulfilled) {
               // unfulfilled means the cloud has accepted an unbinding request (since no user)
               // and we have not finished the unbinding action on station
-              this.setState('Unbinding', JSON.parse(i.raw).volume)
+              this.setState('Unbinding', JSON.parse(info.raw).volume)
             }
           })
         })
-      })).catch(err => setTimeout(() => loop(), 3000))
+      }))
+      .catch(err => setTimeout(() => loop(), 3000))
+
     loop()
+  }
+
+  exit () {
+    this.ctx.channel.removeAllListeners()
+    this.ctx.channel.on('error', () => {})
+    this.ctx.channel = null
   }
 }
 
@@ -365,6 +404,7 @@ class Unbound extends BaseState {
 
   exit () {
     this.ctx.channel.removeAllListeners()
+    this.ctx.channel.on('error', () => {})
     this.ctx.channel.destroy()
     this.ctx.channel = undefined
   }
@@ -532,6 +572,7 @@ class Bound extends BaseState {
 
   exit () {
     this.ctx.channel.removeAllListeners()
+    this.ctx.channel.on('error', () => {})
     this.ctx.channel.destroy()
     this.ctx.channel = undefined
     this.ctx.winas.destroy()
@@ -609,7 +650,7 @@ class AppService {
 
     this.bled.on('BLE_DEVICE_DISCONNECTED', () => {
       // TODO question, when to start?
-      if (this.localAuth) this.localAuth.stop()           
+      if (this.localAuth) this.localAuth.stop()
       if (this.ledService) {
         const bound = this.state.name() === 'Bound'
         this.ledService.runGroup(bound ? 'normal' : 'unbind')
