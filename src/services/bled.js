@@ -165,6 +165,17 @@ class BLED extends require('events') {
     }
   }
 
+  /**
+  This is a workaround, not a fix
+  The request is a batch action
+  1. set wifi and return error if failed
+  2. wait ntp to update, otherwise, the requirement is not met, but this is suspicious since it is an internal requirement of channel module
+  3. the bad thing is we should know the internal state of app service. This breaks the design critera of a state machine. 
+  4. the better solution should takes two steps:
+    1. set up wifi and return error if failed
+    2. blindly send request to state machine and let the state machine to return error
+    3. ntp dependency should not be externally visible. It is simple an internal error and the channel can not be established.
+  */
   waitChannel(type, packet, callback) {
     let ticks = 0
     const tick = setInterval(() => {
