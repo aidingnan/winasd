@@ -1,3 +1,16 @@
+const child = require('child_process')
+const Config = require('config')
+
+if (!Config.cloud.id) {
+  const serial = child.execSync(`atecc -b ${Config.ecc.bus} -c serial`).toString().trim()
+  if (/^0123[0-9a-f]{12}ee$/.test(serial)) {
+    Config.cloud.id = serial
+    console.log(`set Config.cloud.id to ${serial}`)
+  } else {
+    throw new Error(`invalid atecc serial ${serial}`)
+  }
+}
+
 const express = require('express')
 const logger = require('morgan')
 const bodyParser = require('body-parser')

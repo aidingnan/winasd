@@ -9,12 +9,12 @@ const debug = require('debug')('ws:channel')
 const request = require('request')
 const Client = require('../lib/mqttClient')
 
-const storageConf = Config.get('storage')
+// const storageConf = Config.get('storage')
 const IOTConf = Config.get('iot')
-const certFolder = storageConf.dirs.certDir
-const crtName = storageConf.files.cert
+const certFolder = path.join(Config.volume.cloud, Config.cloud.domain, Config.cloud.id)
+const crtName = 'device.crt'
 const pkeyName = 'device.key'
-const caName = storageConf.files.caCert
+const caName = 'ca.crt'
 
 const getURL = (stationId, jobId) => `${Config.pipe.baseURL}/s/v1/station/${stationId}/response/${jobId}`
 
