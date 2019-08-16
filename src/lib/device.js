@@ -4,10 +4,19 @@ const fs = require('fs')
 const path = require('path')
 const child = require('child_process')
 
+const mkdirp = require('mkdirp')
 const Config = require('config')
 const UUID = require('uuid')
 
-const deviceNameP = path.join(Config.storage.dirs.device, Config.storage.files.deviceName)
+const _id = Config.cloud.id || child.execSync('atecc -b 1 -c serial').toString().trim()
+const _domain = Config.cloud.domain
+
+const deviceNameP = path.join(Config.volume.cloud, _domain, _id, 'display-name')
+
+let __device_name
+try { __device_name = fs.readFileSync(deviceNameP).toString().trim() } catch (e) {}
+
+const _deviceName = __device_name || 'PocketDrive'
 
 // default device name
 const DEVICE_NAME = 'PocketDrive'
@@ -39,6 +48,7 @@ const NetworkAddr = (type) => {
   }
 }
 
+/*
 const deviceName = () => {
   let name = DEVICE_NAME
   try {
@@ -46,6 +56,8 @@ const deviceName = () => {
   } catch(e) {}
   return name
 }
+*/
+const deviceName = () => _deviceName
 
 const TMPFILE = () => {
   return path.join(Config.storage.dirs.tmpDir, UUID.v4())
@@ -53,14 +65,14 @@ const TMPFILE = () => {
 
 const setDeviceName = (name, callback) => {
   let tmpfile = TMPFILE()
-  if (!name || !name.length)
-    return process.nextTick(() => callback(null, null))
-  fs.writeFile(tmpfile, name, err => {
-    if (err) return callback(err)
-    fs.rename(tmpfile, deviceNameP, err => 
-      err ? callback(err) 
-        : callback(null, null))
-  })
+  if (!name || !name.length) return process.nextTick(() => callback(null, null))
+  mkdirp(path.dirname(deviceNameP), err => err
+    ? callback(err)
+    : fs.writeFile(tmpfile, name, err => err
+        ? callback(err)
+        : fs.rename(tmpfile, deviceNameP, err => err
+            ? callback(err)
+            : callback(null, null))))
 }
 
 const deviceInfo = () => {
