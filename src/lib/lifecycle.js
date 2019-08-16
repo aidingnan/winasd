@@ -6,10 +6,15 @@ const Config = require('config')
 const request = require('superagent')
 const UUID = require('uuid')
 
-const storageConf = Config.get('storage')
-const certFolder = storageConf.dirs.certDir
-const tmpDir = storageConf.dirs.tmpDir
-const lifecycle = storageConf.files.lifecycle
+const _id = Config.cloud.id || child.execSync('atecc -b 1 -c serial').toString().trim()
+const _domain = Config.cloud.domain
+
+const certFolder = path.join(Config.volume.cloud, _domain, _id)
+const tmpDir = Config.volume.tmp
+
+// const storageConf = Config.get('storage')
+// const certFolder = storageConf.dirs.certDir
+// const tmpDir = storageConf.dirs.tmpDir
 const pkeyName = 'device.key'
 
 const createSignature = (ecc, op, volume, callback) => {

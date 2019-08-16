@@ -53,8 +53,8 @@
   },
   "volume": {
     "init": "/run/cowroot/root/data/init",
-    "tmp": "/run/cowroot/root/data/tmp",
-    "cloud": "/run/cowroot/root/data/cloud"
+    "tmp": "/run/cowroot/root/data/winasd/tmp",
+    "cloud": "/run/cowroot/root/data/winasd/cloud"
   },
   "cloud": {
     "domain": "aws-cn",
