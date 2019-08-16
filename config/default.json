@@ -52,6 +52,7 @@
     "baseURL": "https://aws-cn.aidingnan.com"
   },
   "volume": {
+    "vols": "/run/cowroot/root/vols",
     "init": "/run/cowroot/root/data/init",
     "tmp": "/run/cowroot/root/data/winasd/tmp",
     "cloud": "/run/cowroot/root/data/winasd/cloud"
