@@ -8,15 +8,11 @@ const mkdirp = require('mkdirp')
 const Config = require('config')
 const UUID = require('uuid')
 
-const _id = Config.cloud.id || child.execSync('atecc -b 1 -c serial').toString().trim()
-const _domain = Config.cloud.domain
+const deviceNameP = path.join(Config.volume.cloud,
+  Config.cloud.domain, Config.cloud.id, 'display-name')
 
-const deviceNameP = path.join(Config.volume.cloud, _domain, _id, 'display-name')
-
-let __device_name
+let __device_name = 'PocketDrive'
 try { __device_name = fs.readFileSync(deviceNameP).toString().trim() } catch (e) {}
-
-const _deviceName = __device_name || 'PocketDrive'
 
 // default device name
 const DEVICE_NAME = 'PocketDrive'
@@ -57,7 +53,7 @@ const deviceName = () => {
   return name
 }
 */
-const deviceName = () => _deviceName
+const deviceName = () => __device_name
 
 const TMPFILE = () => {
   // return path.join(Config.storage.dirs.tmpDir, UUID.v4())
@@ -98,7 +94,7 @@ const deviceSN = () => {
     *  return deviceSN
     */
 
-  return _id 
+  return Config.cloud.id
 }
 
 const deviceUSN = () => {
