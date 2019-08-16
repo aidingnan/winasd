@@ -159,7 +159,75 @@ system.withoutEcc是一个全局配置，影响的系统行为包括：
 
 ## 设计与变更
 
-TODO
+设计原则：
+
+1. 从winasd的角度看volume提供的layout，包括init的信息哪里取，vols目录规则，但是winasd不需要了解volroot/data下的完整layout
+  - initDir位置，包含sn等信息，目前这个目录仅仅考虑了有ec硬件的backus；如果是x86，需要重新考虑设计；
+  - tmpDir位置，表示volume内的tmpDir，该目录在设备启动是会清空，程序或程序逻辑之间要避免冲突应该在该目录下继续建立子目录使用，原则上程序除了首次启动之外不该清空该目录；
+  - volDir位置，是所有卷的位置，包括用UUID预定义的临时卷；
+2. 云服务用domain划分，domain内的每个帐号标识都是容器，cert，boundUser, displayName都是这个容器内资源，生命周期不超过容器；
+3. winasd在一次启动时只有一个角色，不支持角色切换；该唯一性由(domain,id)决定；
+4. ca证书位于(domain,id)容器内，ca证书不可外部提取，ca证书可重用，至少目前ca证书只有一个，暂不考虑revocation业务。
+
+### Layout
+
+```
+data/
+  init/ ->              # initDir （symlink）
+  tmp/                  # tmpDir
+  cloud/                # cloudDir
+    aws-cn/    
+      <id>/             # 例如ec serial   
+        device.crt      # 证书
+        device.csr      # CSR（无用）
+        device.key      # device key
+        ca.crt          # 启动时写入
+        boundUser.json  # 绑定用户信息
+        display-name    # deviceName
+    test/
+      <id>/
+        cert.pem
+        ...
+vols/             # volDir
+```
+
+domain, id, 和ca放在config文件中，id允许为空，为空时id就是ec serial，或者其他唯一硬件序列号；如果不为空就是某个云domain发的，该设计结合上面的layout允许云发任意数量软身份，但如果发硬身份就只能有一个；
+
+```json
+
+{
+  "volume": {
+    "vols": "/run/cowroot/root/vols",
+    "init": "/run/cowroot/root/data/init",
+    "tmp": "/run/cowroot/root/data/winasd/tmp",
+    "cloud": "/run/cowroot/root/data/winasd/cloud"
+  },  
+  "cloud": {
+    "domain": "aws-cn",
+    "addr": "https://aws-cn.aidingnan.com",
+    "id": "", 
+    "caIndex": 0,
+    "caList": [
+"-----BEGIN CERTIFICATE-----\nMIIBtjCCAVugAwIBAgITBmyf1XSXNmY/Owua2eiedgPySjAKBggqhkjOPQQDAjA5\nMQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6b24g\nUm9vdCBDQSAzMB4XDTE1MDUyNjAwMDAwMFoXDTQwMDUyNjAwMDAwMFowOTELMAkG\nA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEZMBcGA1UEAxMQQW1hem9uIFJvb3Qg\nQ0EgMzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABCmXp8ZBf8ANm+gBG1bG8lKl\nui2yEujSLtf6ycXYqm0fc4E7O5hrOXwzpcVOho6AF2hiRVd9RFgdszflZwjrZt6j\nQjBAMA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgGGMB0GA1UdDgQWBBSr\nttvXBp43rDCGB5Fwx5zEGbF4wDAKBggqhkjOPQQDAgNJADBGAiEA4IWSoxe3jfkr\nBqWTrBqYaGFy+uGh0PsceGCmQ5nFuMQCIQCcAu/xlJyzlvnrxir4tiz+OpAUFteM\nYyRIHN8wfdVoOw==\n-----END CERTIFICATE-----\n"
+    ]
+  }
+}
+```
+
+caList是证书列表；caIndex是使用的证书序号。
+
+winasd程序内建议将云帐号容器目录命名为`homeDir`:
+
+```js
+const homeDir = path.join(Config.volume.cloud, Config.cloud.domain, Config.cloud.id)
+```
+
+ca证书因为有场景需要以文件路径形式提供，winasd每次启动时写入ca证书；
+
+之前约定的在根卷放置文件控制domain的设计取消。
+
+目前唯一的控制方法是在config.json内配置(domain， id)；其中id可以为空，为空时表示使用atecc序列号作为id；在app.js入口时会读出serial写入Config.cloud.id，其他模块可直接读取使用。
+
 
 
 
