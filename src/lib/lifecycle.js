@@ -6,10 +6,7 @@ const Config = require('config')
 const request = require('superagent')
 const UUID = require('uuid')
 
-const _id = Config.cloud.id || child.execSync('atecc -b 1 -c serial').toString().trim()
-const _domain = Config.cloud.domain
-
-const certFolder = path.join(Config.volume.cloud, _domain, _id)
+const certFolder = path.join(Config.volume.cloud, Config.cloud.domain, Config.cloud.id)
 const tmpDir = Config.volume.tmp
 
 // const storageConf = Config.get('storage')
