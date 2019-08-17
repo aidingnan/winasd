@@ -1,3 +1,5 @@
+process.chdir(require('path').dirname(__dirname))
+
 const child = require('child_process')
 const Config = require('config')
 
