@@ -232,6 +232,7 @@ class Upgrade extends event {
       commit = await readFileWithoutErrorAsync(path.join(VolsPath, vols[i], '/boot/.commit'))
       parent = await readFileWithoutErrorAsync(path.join(VolsPath, vols[i], '/boot/.parent'))
       version = (await readFileWithoutErrorAsync(path.join(VolsPath, vols[i], '/etc/version')))
+      if (version) version = version.slice(1).split('-')[0]
       uuid = vols[i]
       roots.push({ commit, parent, version, uuid })
     }
@@ -239,7 +240,9 @@ class Upgrade extends event {
     let current = {}
     current.commit = await readFileWithoutErrorAsync('/boot/.commit')
     current.uuid = await readFileWithoutErrorAsync('/boot/.parent')
-    current.version = (await readFileWithoutErrorAsync('/etc/version'))
+    let version = (await readFileWithoutErrorAsync('/etc/version'))
+    if (version) version = version.slice(1).split('-')[0]
+    current.version = version
     return { current, roots }
   }
 
