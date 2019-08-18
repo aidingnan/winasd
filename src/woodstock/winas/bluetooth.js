@@ -14,11 +14,12 @@ const GattAccessPointService = require('../bluez/serives/gatt-access-point-servi
  * BLE_DEVICE_CONNECTED
  */
 class Bluetooth extends DBusObject {
-  constructor(bound, sn, hostname) {
+  constructor(bound, localName = 'noname') {
     super()
     let b = bound ? 0x02 : 0x01
-    let s = sn ? sn.slice(-8) : ''
-    this.localName = hostname || s
+    // let s = sn ? sn.slice(-8) : ''
+    // this.localName = hostname || s
+    this.localName = localName
     this.adv = new Advertisement('advertisement0', {
       Type: 'peripheral',
       LocalName: this.localName,
@@ -91,11 +92,11 @@ class Bluetooth extends DBusObject {
       .addChild(APGATT)
   }
 
-  updateAdv(bound, sn) {
+  updateAdv(bound, localName) {
     let b = bound ? 0x02 : 0x01
     this.adv.updateAdv({
       Type: 'peripheral',
-      LocalName: this.localName,
+      LocalName: localName || this.localName,
       ManufacturerData: [
         [0xffff, ['ay', [b]]]
       ],
