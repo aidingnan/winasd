@@ -104,7 +104,7 @@ const deviceUSN = () => {
 const SoftwareVersion = () => {
   let currentVersion = '0.0.0'
   try {
-    currentVersion = fs.readFileSync('/etc/version').toString().trim()
+    currentVersion = fs.readFileSync('/etc/version').toString().trim().slice(1).split('-')[0]
   } catch (e) {
     console.log('device version not found')
   }
