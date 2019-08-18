@@ -66,3 +66,6 @@ tmptest/
 *.swp
 
 config/production.json
+
+# this file is injected by rockbian build
+.sha
