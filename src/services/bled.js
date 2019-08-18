@@ -5,6 +5,7 @@ const debug = require('debug')('ws:bled')
 const Device = require('../lib/device')
 const Promise = require('bluebird')
 const child = Promise.promisifyAll(require('child_process'))
+const os = require('os')
 
 /**
  * BLED 负责初始化 dbus对象
@@ -25,7 +26,10 @@ class BLED extends require('events') {
     this.ctx = ctx
     this.dbus = new DBus()
     this.dbus.on('connect', () => {
-      this.ble = new Bluetooth(ctx.userStore && ctx.userStore.data || false, ctx.deviceSN, ctx.hostname)
+      const bound = ctx.userStore && ctx.userStore.data || false
+      const localName = os.hostname()
+      this.ble = new Bluetooth(bound, localName)
+
       this.dbus.attach('/org/bluez/bluetooth', this.ble)
       this.emit('connect')
       this.initProperties()
@@ -54,7 +58,9 @@ class BLED extends require('events') {
 
   // update ble advertisement
   updateAdv() {
-    this.ble && this.ble.updateAdv(this.ctx.userStore && this.ctx.userStore.data || false, this.ctx.deviceSN)
+    // no local name provided, reuse existing
+    const bound = this.ctx.userStore && this.ctx.userStore.data || false
+    this.ble && this.ble.updateAdv(bound)
   }
 
   // remove all listeners from old ble, then add those to new
