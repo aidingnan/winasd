@@ -297,7 +297,7 @@ class Pending extends BaseState {
             } else if (device.owner && !fulfilled) {
               // unfulfilled means the cloud has accepted a binding request (since user)
               // but we have not finished the binding action on station
-              this.setState('Binding', JSON.parse(raw).volume)
+              this.setState('Binding', user, JSON.parse(raw).volume)
             } else if (!device.owner && fulfilled) {
               // fulfilled means we have already done all unbinding action
               // and all we need to do is removing user file
