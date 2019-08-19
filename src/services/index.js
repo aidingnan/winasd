@@ -318,6 +318,7 @@ class Pending extends BaseState {
   exit () {
     this.ctx.channel.removeAllListeners()
     this.ctx.channel.on('error', () => {})
+    this.ctx.channel.destroy()
     this.ctx.channel = null
   }
 }
