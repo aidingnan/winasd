@@ -583,7 +583,7 @@ class AppService {
   constructor () {
     this.config = Config
     // this.upgrade = new Upgrade(this, Config.storage.dirs.tmpDir, Config.storage.dirs.isoDir)
-    this.upgrade = new Upgrade(this, Config.volume.tmpDir /*, Config.storage.dirs.isoDir */)
+    this.upgrade = new Upgrade(this, Config.volume.tmp /*, Config.storage.dirs.isoDir */)
 
     // services
     this.userStore = undefined // user store
