@@ -426,8 +426,6 @@ class Binding extends BaseState {
     await new Promise((resolve, reject) => this.ctx.userStore.save(user, err => err ? reject(err) : resolve()))
     // refresh lifecycle
     await new Promise((resolve, reject) => refresh(err => err ? reject(err) : resolve()))
-    // update ble advertisement
-    this.ctx.bled.updateAdv()
   }
 
   async cleanVolumeAsync (volume) {
@@ -479,8 +477,6 @@ class Unbinding extends BaseState {
     await new Promise((resolve, reject) => refresh(err => err ? reject(err) : resolve()))
     // update cloud device info
     this.ctx.deviceUpdate()
-    // update ble advertisement
-    this.ctx.bled.updateAdv()
   }
 
   async cleanVolumeAsync (volume) {
@@ -625,6 +621,24 @@ class AppService {
         this.winas && this.winas.sendMessage({
           type: 'token',
           data: x
+        })
+      }
+    })
+
+    Object.defineProperty(this, 'userStore', {
+      get () {
+        return this._userStore
+      },
+      set (x) {
+        if (this._userStore) {
+          this._userStore.removeAllListeners()
+        }
+        this._userStore = x
+        // update ble advertisement
+        this.bled && this.bled.updateAdv()
+        if (!x) return
+        x.on('Update', () => {
+          this.bled && this.bled.updateAdv()
         })
       }
     })
