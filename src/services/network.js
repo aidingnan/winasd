@@ -61,7 +61,8 @@ class NetWorkManager extends require('events') {
   }
 
   connect(ssid, pwd, callback) {
-    this.nm ? this.nm.connect2(ssid, pwd, callback)
+    this.nm ? this.nm.connect2(ssid, pwd, (...args) => 
+        (child.exec('sync',() => {}), callback(...args)))
       : callback(Object.assign(new Error('nm not started'), {code: 'ESTATE'}))
   }
 
