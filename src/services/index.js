@@ -286,26 +286,16 @@ class Pending extends BaseState {
               return this.setState('Unbound')
             }
           }
-
+          // unsure if everything ok in Pending state while fulfilled, 
+          // so we cloud not jump to `Bound` or `Unbound`, 
+          // only can do binding or unbinding again.(no refresh counter if fulfilled)
           verify(this.ctx.ecc, signature, raw, (err, verified, fulfilled) => {
             if (err || !verified) {
               this.setState('Failed', EBOUND)
-            } else if (device.owner && fulfilled) {
-              // fulfilled means we have already done all binding action
-              // and all we need to do is saving user to file
-              this.setState('Bound')
-            } else if (device.owner && !fulfilled) {
-              // unfulfilled means the cloud has accepted a binding request (since user)
-              // but we have not finished the binding action on station
-              this.setState('Binding', user, JSON.parse(raw).volume)
-            } else if (!device.owner && fulfilled) {
-              // fulfilled means we have already done all unbinding action
-              // and all we need to do is removing user file
-              this.setState('Unbound')
-            } else if (!device.owner && !fulfilled) {
-              // unfulfilled means the cloud has accepted an unbinding request (since no user)
-              // and we have not finished the unbinding action on station
-              this.setState('Unbinding', JSON.parse(raw).volume)
+            } else if (device.owner) {
+              this.setState('Binding', user, JSON.parse(raw).volume, fulfilled)
+            } else if (!device.owner) {
+              this.setState('Unbinding', JSON.parse(raw).volume, fulfilled)
             }
           })
         })
@@ -340,13 +330,13 @@ class Unbound extends BaseState {
       if (user) { // mismatch
         console.log('****** cloud device bind state mismatch, check signature *****')
         // TODO does fulfilled has no meaning ???
-        verify(this.ctx.ecc, i && i.signature, i && i.raw, (err, verifyed) => {
+        verify(this.ctx.ecc, i && i.signature, i && i.raw, (err, verifyed, fulfilled) => {
           if (err || !verifyed) {
             console.log('*** cloud device bind state mismatch, device in unbind ***')
             this.setState('Failed', EBOUND)
           } else {
             // verify func already parse json, so no error try catch here
-            this.setState('Binding', user, JSON.parse(i.raw).volume)
+            this.setState('Binding', user, JSON.parse(i.raw).volume, fulfilled)
           }
         })
       } else {
@@ -375,7 +365,7 @@ class Unbound extends BaseState {
           username: data.data.username,
           phone: data.data.username
         }
-        this.setState('Binding', user, volume, callback)
+        this.setState('Binding', user, volume, false, callback)
       })
     })
   }
@@ -407,8 +397,9 @@ class Unbound extends BaseState {
  * ```
  */
 class Binding extends BaseState {
-  enter (user, volume, callback = () => {}) {
-    this.start(user, volume)
+  // norefresh - no refresh counter
+  enter (user, volume, norefresh, callback = () => {}) {
+    this.start(user, volume, norefresh)
       .then(() => {
         process.nextTick(() => callback(null, user))
         this.setState('Bound')
@@ -420,12 +411,12 @@ class Binding extends BaseState {
       })
   }
 
-  async start (user, volume) {
+  async start (user, volume, norefresh) {
     await this.cleanVolumeAsync(volume)
     // save user
     await new Promise((resolve, reject) => this.ctx.userStore.save(user, err => err ? reject(err) : resolve()))
     // refresh lifecycle
-    await new Promise((resolve, reject) => refresh(err => err ? reject(err) : resolve()))
+    if (!norefresh) await new Promise((resolve, reject) => refresh(err => err ? reject(err) : resolve()))
   }
 
   async cleanVolumeAsync (volume) {
@@ -453,15 +444,16 @@ class Binding extends BaseState {
 }
 
 class Unbinding extends BaseState {
-  enter (volume) {
-    this.doUnbind(volume)
+  // norefresh - no refresh counter
+  enter (volume, norefresh) {
+    this.doUnbind(volume, norefresh)
       .then(() => this.setState('Unbound'))
       .catch(e => this.setState('Failed', Object.assign(e, {
         code: 'EUNBINDING'
       })))
   }
 
-  async doUnbind (volume) {
+  async doUnbind (volume, norefresh) {
     // delete user info
     await new Promise((resolve, reject) => this.ctx.userStore.save(null, err => err ? reject(err) : resolve()))
     // set default device name, ignore error
@@ -474,7 +466,7 @@ class Unbinding extends BaseState {
     }
 
     // refresh lifecycle
-    await new Promise((resolve, reject) => refresh(err => err ? reject(err) : resolve()))
+    if (!norefresh) await new Promise((resolve, reject) => refresh(err => err ? reject(err) : resolve()))
     // update cloud device info
     this.ctx.deviceUpdate()
   }
@@ -520,12 +512,12 @@ class Bound extends BaseState {
 
         console.log('****** cloud device Bound state mismatch, check signature *****')
         // TODO fulfilled meaningless ???
-        verify(this.ctx.ecc, i && i.signature, i && i.raw, (err, verifyed) => {
+        verify(this.ctx.ecc, i && i.signature, i && i.raw, (err, verifyed, fulfilled) => {
           if (err || !verifyed) {
             console.log('*** cloud device bound state mismatch, device in bound ***')
             this.setState('Failed', EBOUND)
           } else {
-            this.setState('Unbinding', JSON.parse(i.raw).volume)
+            this.setState('Unbinding', JSON.parse(i.raw).volume, fulfilled)
           }
         })
       } else {
@@ -550,7 +542,7 @@ class Bound extends BaseState {
         return callback(err)
       }
       process.nextTick(() => callback(null, null))
-      this.setState('Unbinding', volume)
+      this.setState('Unbinding', volume, false)
     })
   }
 

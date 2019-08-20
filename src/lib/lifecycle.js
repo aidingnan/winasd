@@ -101,10 +101,13 @@ module.exports.verify = (ecc, signature, raw, callback) => {
     }
     readCounter((err, count) => {
       if (err) return callback(err)
+      // record counter in cloud while do binding or unbinding
+      // if current counter equal to cloud, that means not fulfilled
+      // else fulfilled
       if (raw.lifecycle === count) {
-        callback(null, true, true)  // fulfilled
+        callback(null, true, false)  // not fulfilled
       } else if (raw.lifecycle === count - 1) {
-        callback(null, true, false) // not fulfilled
+        callback(null, true, true) // fulfilled 
       } else {
         callback(null, false)
       }
