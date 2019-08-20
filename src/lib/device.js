@@ -70,7 +70,7 @@ const setDeviceName = (name, callback) => {
         ? callback(err)
         : fs.rename(tmpfile, deviceNameP, err => err
             ? callback(err)
-            : callback(null, null))))
+            : (__device_name = name, callback(null, null)))))
 }
 
 const deviceInfo = () => {
