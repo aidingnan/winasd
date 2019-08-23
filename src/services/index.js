@@ -416,7 +416,7 @@ class Binding extends BaseState {
     // save user
     await new Promise((resolve, reject) => this.ctx.userStore.save(user, err => err ? reject(err) : resolve()))
     // refresh lifecycle
-    if (!norefresh) await new Promise((resolve, reject) => refresh(err => err ? reject(err) : resolve()))
+    if (!norefresh) await new Promise((resolve, reject) => refresh(this.ctx.ecc, err => err ? reject(err) : resolve()))
   }
 
   async cleanVolumeAsync (volume) {
@@ -466,7 +466,7 @@ class Unbinding extends BaseState {
     }
 
     // refresh lifecycle
-    if (!norefresh) await new Promise((resolve, reject) => refresh(err => err ? reject(err) : resolve()))
+    if (!norefresh) await new Promise((resolve, reject) => refresh(this.ctx.ecc, err => err ? reject(err) : resolve()))
     // update cloud device info
     this.ctx.deviceUpdate()
   }

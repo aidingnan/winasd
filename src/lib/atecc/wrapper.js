@@ -50,6 +50,14 @@ class Wrapper {
   serialNumber (opts, callback) {
     this.run(Object.assign({ op: 'serialNumber' }, opts), callback)
   }
+
+  readCounter (opts, callback) {
+    this.run(Object.assign({ op: 'readCounter' }, opts), callback)
+  }
+
+  incCounter (opts, callback) {
+    this.run(Object.assign({ op: 'incCounter' }, opts), callback)
+  }
 }
 
 const initEcc = (busNum, callback) => {

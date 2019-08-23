@@ -32,7 +32,7 @@ const createSignature = (ecc, op, volume, callback) => {
       return callback(e)
     }
   } else {
-    readCounter((err, count) => {
+    readCounter(ecc, (err, count) => {
       if (err) return callback(err)
       raw = JSON.stringify({
         lifecycle: count,
@@ -99,7 +99,7 @@ module.exports.verify = (ecc, signature, raw, callback) => {
     }catch(e) {
       return callback(null, false)
     }
-    readCounter((err, count) => {
+    readCounter(ecc, (err, count) => {
       if (err) return callback(err)
       // record counter in cloud while do binding or unbinding
       // if current counter equal to cloud, that means not fulfilled
@@ -115,31 +115,12 @@ module.exports.verify = (ecc, signature, raw, callback) => {
   })
 }
 
-const refresh = (callback) => {
-  child.exec("atecc -b 1 -c 'counter-inc 0'", (err, stdout, stderr) => {
-    if (err || stderr) {
-      console.log('Counter Inc error: ', err || stderr.toString())
-      return callback(err || new Error(stderr.toString()))
-    } else if (!stdout.toString().startsWith('Counter 0:')){
-      console.log('Counter Inc error output: ', stdout.toString())
-    } else {
-      callback(null)
-    }
-  })
+const refresh = (ecc, callback) => {
+  ecc.incCounter({}, callback)
 }
 
-const readCounter = (callback) => {
-  child.exec("atecc -b 1 -c 'counter-read 0'", (err, stdout, stderr) => {
-    if (err || stderr) {
-      console.log('Counter read error: ', err || stderr.toString())
-      return callback(err || new Error(stderr.toString()))
-    } else if (!stdout.toString().startsWith('Counter 0:') || stdout.toString().trim().split(':').length !== 2){
-      console.log('Counter Inc error output: ', stdout.toString())
-    } else {
-      let count = stdout.toString().trim().split(':')[1].trim()
-      callback(null, parseInt(count))
-    }
-  })
+const readCounter = (ecc, callback) => {
+  ecc.readCounter({}, callback)
 }
 
 module.exports.refresh = refresh

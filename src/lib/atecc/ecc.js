@@ -283,6 +283,35 @@ class ECC {
       .then(csr => callback(null, csr))
       .catch(e => callback(e))
   }
+
+  readCounter(opts, callback) {
+    child.exec("atecc -b 1 -c 'counter-read 0'", (err, stdout, stderr) => {
+      if (err || stderr) {
+        console.log('Counter read error: ', err || stderr.toString())
+        return callback(err || new Error(stderr.toString()))
+      } else if (!stdout.toString().startsWith('Counter 0:') || stdout.toString().trim().split(':').length !== 2){
+        console.log('Counter read error output: ', stdout.toString())
+        return callback(new Error('readCounter error, format error'))
+      } else {
+        let count = stdout.toString().trim().split(':')[1].trim()
+        callback(null, parseInt(count))
+      }
+    })
+  }
+
+  incCounter(opts, callback) {
+    child.exec("atecc -b 1 -c 'counter-inc 0'", (err, stdout, stderr) => {
+      if (err || stderr) {
+        console.log('Counter Inc error: ', err || stderr.toString())
+        return callback(err || new Error(stderr.toString()))
+      } else if (!stdout.toString().startsWith('Counter 0:')){
+        console.log('Counter Inc error output: ', stdout.toString())
+        return callback(new Error('incCounter error, format error'))
+      } else {
+        callback(null)
+      }
+    })
+  }
 }
 
 Object.assign(ECC.prototype, commands)
