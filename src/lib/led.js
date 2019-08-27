@@ -183,9 +183,9 @@ class LEDControl extends require('events') {
 
   // PWMs
   setPWMS(l1, l2, l3) {
-    this.set(0x1C, l1 || 0x00)
-    this.set(0x1D, l2 || 0x00)
-    this.set(0x1E, l3 || 0x00)
+    this.set(0x1C, l1 || 0xa0)
+    this.set(0x1D, l2 || 0xa0)
+    this.set(0x1E, l3 || 0xa0)
   }
 
   async setPWMSAsync(l1, l2, l3) {
