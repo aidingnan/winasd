@@ -15,8 +15,6 @@ const Config = require('config')
 const Promise = require('bluebird')
 const mkdirp = require('mkdirp')
 const rimraf = require('rimraf')
-const mkdirpAsync = Promise.promisify(mkdirp)
-const rimrafAsync = Promise.promisify(rimraf)
 
 const child = Promise.promisifyAll(require('child_process'))
 
@@ -34,6 +32,7 @@ const Upgrade = require('./upgrade')
 const Device = require('../lib/device')
 const initEcc = require('../lib/atecc')
 const LocalAuth = require('./localAuth')
+const { BledHandler } = require('../lib/msgHandler')
 // const Provision = require('./provision')
 const NetworkManager = require('./network')
 const { reqBind, reqUnbind, verify, refresh } = require('../lib/lifecycle')
@@ -81,12 +80,10 @@ class BaseState extends State {
   }
 }
 
-
 const homeDir = path.join(Config.volume.cloud, Config.cloud.domain, Config.cloud.id)
 const tmpDir = Config.volume.tmp
 
 const deviceCert = path.join(homeDir, 'device.crt')
-const deviceKey = path.join(homeDir, 'device.key')
 const caCert = path.join(homeDir, 'ca.crt')
 
 /**
@@ -137,6 +134,7 @@ class Prerequisite extends BaseState {
         if (!--count) nextNext()
       })
 
+      // eslint-disable-next-line no-unused-expressions
       noEcc ? this.ctx.deviceSN = Config.cloud.id : null
 
       const initDir = Config.volume.init
@@ -256,7 +254,6 @@ class Provisioning extends BaseState {
 
 class Pending extends BaseState {
   enter () {
-
     // TODO dns does not work right after start, probably caused by net module.
     // TODO write file safe way
     // TODO save user file
@@ -300,7 +297,7 @@ class Pending extends BaseState {
           })
         })
       }))
-      .catch(err => setTimeout(() => loop(), 3000))
+      .catch(_ => setTimeout(() => loop(), 3000))
 
     loop()
   }
@@ -370,8 +367,8 @@ class Unbound extends BaseState {
   }
 
   validateBlock (callback) {
-    fs.exists('/sys/block/sda/size', exists => {
-      if (!exists) return callback(new Error('sda not found'))
+    fs.lstat('/sys/block/sda/size', err => {
+      if (err) return callback(new Error('sda not found'))
       fs.readFile('/sys/block/sda/size', (err, data) => {
         if (err || data.toString().trim() === '0') return callback(err || new Error('sda size 0'))
         return callback(null)
@@ -586,19 +583,12 @@ class AppService {
 
     this.localAuth = new LocalAuth(this)
 
-    this.bled = new Bled(this)
+    const msgHandler = new BledHandler()
+    this.registerBleHandler(msgHandler)
+    this.bled = new Bled(msgHandler)
     this.bled.on('connect', () => {
-        // TODO anything to do?
-      })
-
-    this.bled.on('BLE_DEVICE_DISCONNECTED', () => {
-      // TODO question, when to start?
-      if (this.localAuth) this.localAuth.stop()
-      if (this.ledService) {
-        const bound = this.state.name() === 'Bound'
-        this.ledService.runGroup(bound ? 'normal' : 'unbind')
-      }
-    }) // stop localAuth
+      // TODO anything to do?
+    })
 
     this.net = new NetworkManager(this)
     this.net.on('started', state => {
@@ -796,6 +786,8 @@ class AppService {
     if (this.winas) this.winas.destroy()
   }
 }
+
+Object.assign(AppService.prototype, require('./app_handler'))
 
 AppService.prototype.Prerequisite = Prerequisite
 // AppService.prototype.Provisioning = Provisioning
