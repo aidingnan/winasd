@@ -1,3 +1,7 @@
+const Promise = require('bluebird')
+const child = Promise.promisifyAll(require('child_process'))
+const Device = require('../lib/device')
+
 module.exports = {
   registerBleHandler (msgHandler) {
     msgHandler.register('LocalAuthWrite', this.handleLocalAuth.bind(this))
@@ -133,10 +137,11 @@ module.exports = {
   },
 
   handleDeviceConnect (packet, callback) {
-
+    console.log('handleDeviceConnect')
   },
 
   handleDeviceDisconnect (packet, callback) {
+    console.log('handleDeviceDisconnect')
     // TODO question, when to start?
     if (this.localAuth) this.localAuth.stop()
     if (this.ledService) {
