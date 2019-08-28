@@ -418,7 +418,7 @@ class Binding extends BaseState {
 class Unbinding extends BaseState {
   // norefresh - no refresh counter
   enter (norefresh) {
-    this.doUnbind(volume, norefresh)
+    this.doUnbind(norefresh)
       .then(() => this.setState('Unbound'))
       .catch(e => this.setState('Failed', Object.assign(e, {
         code: 'EUNBINDING'
