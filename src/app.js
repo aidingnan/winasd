@@ -1,10 +1,13 @@
+// change current working directory
 process.chdir(require('path').dirname(__dirname))
 
+const fs = require('fs')
 const child = require('child_process')
 const Config = require('config')
 
 if (!Config.cloud.id) {
-  const serial = child.execSync(`atecc -b ${Config.ecc.bus} -c serial`).toString().trim()
+  const serial = fs.readFileSync('/run/cowroot/root/data/init/sn').toString().trim()
+
   if (/^0123[0-9a-f]{12}ee$/.test(serial)) {
     Config.cloud.id = serial
     console.log(`set Config.cloud.id to ${serial}`)
