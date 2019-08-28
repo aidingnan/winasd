@@ -14,13 +14,12 @@ const tmpDir = Config.volume.tmp
 // const tmpDir = storageConf.dirs.tmpDir
 const pkeyName = 'device.key'
 
-const createSignature = (ecc, op, volume, callback) => {
+const createSignature = (ecc, op, callback) => {
   let raw
   if (Config.system.withoutEcc) {
     let signature, raw = JSON.stringify({
       lifecycle: 'fack device....',
-      op,
-      volume
+      op
     })
     try {
       let sign = crypto.createSign('SHA256')
@@ -36,8 +35,7 @@ const createSignature = (ecc, op, volume, callback) => {
       if (err) return callback(err)
       raw = JSON.stringify({
         lifecycle: count,
-        op,
-        volume
+        op
       })
       ecc.sign({ data:raw }, (err, sig) => {
         if (err) return callback(err)
@@ -50,15 +48,14 @@ const createSignature = (ecc, op, volume, callback) => {
 module.exports.createSignature = createSignature
 
 module.exports.reqUnbind = (ecc, encrypted, token, callback) => {
-  let volume = UUID.v4()
-  createSignature(ecc, 'unbind', volume, (err, data) => {
+  createSignature(ecc, 'unbind', (err, data) => {
     if (err) return callback(err)
     let { signature, raw } = data
     request.post(`${ Config.pipe.baseURL }/s/v1/station/unbind`)
       .send({ signature, encrypted, raw })
       .set('Authorization', token)
       .then(res => {
-        callback(null, res.body, volume)
+        callback(null, res.body)
       }, error => {
         callback(error)
       })
@@ -66,15 +63,14 @@ module.exports.reqUnbind = (ecc, encrypted, token, callback) => {
 }
 
 module.exports.reqBind = (ecc, encrypted, token, callback) => {
-  let volume = UUID.v4()
-  createSignature(ecc, 'bind', volume, (err, data) => {
+  createSignature(ecc, 'bind', (err, data) => {
     if (err) return callback(err)
     let { signature, raw } = data
     request.post(`${ Config.pipe.baseURL }/s/v1/station/bind`)
       .send({ signature, encrypted, raw })
       .set('Authorization', token)
       .then(res => {
-        callback(null, res.body, volume)
+        callback(null, res.body)
       }, error => {
         callback(error)
       })
