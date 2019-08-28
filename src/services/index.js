@@ -573,10 +573,10 @@ class AppService {
         }
         this._userStore = x
         // update ble advertisement
-        this.bled && this.bled.updateAdv()
+        this.bled && this.bled.updateAdv((x && x.data) || false)
         if (!x) return
         x.on('Update', () => {
-          this.bled && this.bled.updateAdv()
+          this.bled && this.bled.updateAdv((x && x.data) || false)
         })
       }
     })

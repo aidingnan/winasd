@@ -77,10 +77,12 @@ module.exports.ChannelHandler = ChannelHandler
 class BledHandler extends MsgHandler {
   handle (type, data, done) {
     let packet
-    try {
-      packet = JSON.parse(data)
-    } catch (e) {
-      return done(type, { code: 'ENOTJSON', message: 'packet error' })
+    if (data) {
+      try {
+        packet = JSON.parse(data)
+      } catch (e) {
+        return done(type, { code: 'ENOTJSON', message: 'packet error' })
+      }
     }
 
     if (this.handlerMap.has(type)) {

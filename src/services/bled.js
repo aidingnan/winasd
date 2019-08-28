@@ -75,7 +75,9 @@ class BLED extends require('events') {
     if (this.ble) {
       debug(this.ble[type.slice(0, type.length - 5) + 'Update'], data)
       data = Buffer.from(JSON.stringify(data))
-      this.ble[type.slice(0, type.length - 5) + 'Update'](data)
+      const funcName = type.slice(0, type.length - 5) + 'Update'
+      if (typeof this.ble[funcName] !== 'function') return
+      this.ble[funcName](data)
     }
   }
 }
