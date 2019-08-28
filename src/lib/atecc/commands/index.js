@@ -8,5 +8,6 @@ module.exports = Object.assign({},
   require('./nonce'),
   require('./random'),
   require('./sign'),
-  require('./verify')
+  require('./verify'),
+  require('./counter')
 )

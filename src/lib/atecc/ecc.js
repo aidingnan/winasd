@@ -312,6 +312,20 @@ class ECC {
       }
     })
   }
+
+  counter (op, index, callback) {
+    this.counterAsync(op, index)
+      .then(c => callback(null, c))
+      .catch(e => callback(e))
+  }
+
+  readCounter(opts, callback) {
+    this.counter('read', 0, callback)
+  }
+
+  incCounter(opts, callback) {
+    this.counter('incr', 0, callback)
+  }
 }
 
 Object.assign(ECC.prototype, commands)
