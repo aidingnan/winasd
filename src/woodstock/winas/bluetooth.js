@@ -34,9 +34,35 @@ class Bluetooth extends DBusObject {
 
     this.addChild(this.adv)
 
+    // 100 NIC
+    const NICService = new GattNICService('service4', true)
+    NICService.on('Char1WriteValue', (...args) => this.emit('NICChar1Write', ...args))
+    NICService.on('Char2WriteValue', (...args) => this.emit('NICChar2Write', ...args))
+    this.NICChar1Update = NICService.char1Update.bind(NICService.rxIface)
+    this.NICChar2Update = NICService.char2Update.bind(NICService.rxIface)
+
+    // 200 AP
+    const APService = new GattAccessPointService('service5', true)
+    APService.on('Char1WriteValue', (...args) => this.emit('APChar1Write', ...args))
+    APService.on('Char2WriteValue', (...args) => this.emit('APChar2Write', ...args))
+    this.APChar1Update = APService.char1Update.bind(APService.rxIface)
+    this.APChar2Update = APService.char2Update.bind(APService.rxIface)
+
+    // 600 LocalAuth
+    const service1 = new GattLocalAuthService('service1', true)
+    service1.on('WriteValue', (...args) => this.emit('LocalAuthWrite', ...args))
+    this.LocalAuthUpdate = service1.rxIface.update.bind(service1.rxIface)
+
+    // 700 NetworkSetting
+    const service2 = new GattNetworkSettingService('service2', true)
+    service2.on('WriteValue', (...args) => this.emit('NSWrite', ...args))
+    this.NSUpdate = service2.rxIface.update.bind(service2.rxIface)
+
+    // 800 Cloud
+    const service3 = new GattSerialService('service3', true)
+    service3.on('WriteValue', (...args) => this.emit('CloudWrite', ...args))
     this.CloudUpdate = service3.rxIface.update.bind(service3.rxIface)
-
-
+    
     // gatt root
     let gatt = new DBusObject('gatt')
       .addInterface(new DBusObjectManager())
