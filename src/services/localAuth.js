@@ -3,7 +3,7 @@ const crypto = require('crypto')
 const deepEqual = require('fast-deep-equal')
 
 const KEYS = 'abcdefg12345678'.split('')
-const RandomKey = () => KEYS.map(x => KEYS[Math.round(Math.random()*14)]).join('')
+const RandomKey = () => KEYS.map(x => KEYS[Math.round(Math.random() * 14)]).join('')
 
 const COLORS = [
   ['#ff0000', 'alwaysOn'], ['#ffffff', 'alwaysOn'], ['#0000ff', 'alwaysOn'],
@@ -15,45 +15,45 @@ const CreateArgs = () => COLORS[Math.floor(Math.random() * 6)]
  * Using Led color or touch-button to check is it owner operation
  */
 class LocalAuth {
-  constructor(ctx) {
+  constructor (ctx) {
     this.ctx = ctx
     this._state = 'Idle' // 'Workding'
     this.timer = undefined // working timer
     this.secret = RandomKey()
     Object.defineProperty(this, 'state', {
-      get() {
+      get () {
         return this._state
       },
-      set(v) {
+      set (v) {
         console.log('Local Auth Change State :  ', this._state, '  ->  ', v)
-        if (v === 'Idle') this.args = undefined 
+        if (v === 'Idle') this.args = undefined
         this._state = v
       }
     })
   }
 
   // request hardware auth/ transfer to authing state
-  request(callback) {
+  request (callback) {
     if (this.state === 'Idle') {
-      let args = CreateArgs()
+      const args = CreateArgs()
       try {
         this.ctx.ledService.run(args[0], args[1], 60 * 1000) // start led
         this.args = args
         console.log('LocalAuth ==> ', args)
         this.state = 'Working'
         this.timer = setTimeout(() => this.stop(), 60 * 1000)
-        process.nextTick(() => callback(null, { colors: COLORS}))
-      } catch(e) {
+        process.nextTick(() => callback(null, { colors: COLORS }))
+      } catch (e) {
         this.stop()
-        process.nextTick(() => callback(Object.assign(e, { code: 'ELED'})))
+        process.nextTick(() => callback(Object.assign(e, { code: 'ELED' })))
       }
     } else {
-      process.nextTick(() => callback(Object.assign(new Error('busy'), { code: 'EBUSY'})))
+      process.nextTick(() => callback(Object.assign(new Error('busy'), { code: 'EBUSY' })))
     }
   }
 
   // stop local auth
-  stop() {
+  stop () {
     if (this.state === 'Idle') return
     clearTimeout(this.timer)
     this.ctx.ledService.runGroup(this.ctx.colorGroup())
@@ -61,17 +61,17 @@ class LocalAuth {
   }
 
   // check auth result
-  auth(data, callback) {
-    if (this.state !== 'Working')
-      return callback(Object.assign(new Error('error state'), { code: 'ESTATE', status: 400 }))
+  auth (data, callback) {
+    if (this.state !== 'Working') { return callback(Object.assign(new Error('error state'), { code: 'ESTATE', status: 400 })) }
 
     // check data maybe led colors
     if (!data.color || !deepEqual(data.color, this.args)) {
       this.stop()
-      return callback(Object.assign(new Error('color error'), { code: 'ECOLOR', status: 400}))
+      return callback(Object.assign(new Error('color error'), { code: 'ECOLOR', status: 400 }))
     }
     // create token
-    let cipher = crypto.createCipher('aes128', this.secret)
+    // eslint-disable-next-line node/no-deprecated-api
+    const cipher = crypto.createCipher('aes128', this.secret)
     let token = cipher.update(JSON.stringify({
       from: 'ble',
       ctime: new Date().getTime()
@@ -82,9 +82,10 @@ class LocalAuth {
   }
 
   // verify token
-  verify(token) {
-    try{
-      let decipher = crypto.createDecipher('aes128', this.secret)
+  verify (token) {
+    try {
+      // eslint-disable-next-line node/no-deprecated-api
+      const decipher = crypto.createDecipher('aes128', this.secret)
       let data = decipher.update(token, 'hex', 'utf8')
       data += decipher.final('utf8')
       data = JSON.parse(data)
@@ -92,7 +93,7 @@ class LocalAuth {
         return false
       }
       return true
-    }catch {
+    } catch (e) {
       return false
     }
   }

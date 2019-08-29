@@ -15,10 +15,10 @@ module.exports = {
       return done({ seq: packet.seq, error: Object.assign(new Error(`winasd in ${this.state.name} state`), { code: 'ESTATE' }) })
     }
     if (packet.action === 'req') {
-      this.localAuth.request((err, data) => 
+      this.localAuth.request((err, data) =>
         done({ seq: packet.seq, error: err, data }))
     } else if (packet.action === 'auth') {
-      this.localAuth.auth(packet.body, (err, data) => 
+      this.localAuth.auth(packet.body, (err, data) =>
         done({ seq: packet.seq, error: err, data }))
     } else {
       console.log('Unknown action to localAuth: ', packet.action)
