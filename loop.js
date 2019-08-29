@@ -4,10 +4,13 @@ const loop = () => {
   let winasd = child.spawn('node', ['src/app.js'])
   winasd.stdout.on('data', data => {
     let text = data.toString().trim()
-    console.log(text)
-    if (text.includes('ecc exec failure')) {
-      process.exit()
+    if (!text.includes('register application')) {
+      console.log(text)
     }
+
+    // if (text.includes('ecc exec failure')) {
+    //   process.exit()
+    // }
 
     if (text.includes('telsa emit error')) {
       winasd.kill()
