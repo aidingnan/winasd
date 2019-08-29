@@ -191,9 +191,7 @@ class Prerequisite extends BaseState {
 
       const nextNext = () => error
         ? this.setState('Failed', error)
-        : certExists
-          ? this.setState(!!this.ctx.userStore.data ? 'Bound' : 'Unbound') // eslint-disable-line no-extra-boolean-cast
-          : this.setState('Pending')
+        : this.setState('Checking')
     }
   }
 
