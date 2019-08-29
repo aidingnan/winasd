@@ -34,7 +34,6 @@ module.exports.MsgHandler = MsgHandler
  */
 
 class ChannelHandler extends MsgHandler {
-
   handle (topic, payload) {
     let data
     try {
@@ -81,7 +80,7 @@ class BledHandler extends MsgHandler {
       try {
         packet = JSON.parse(data)
       } catch (e) {
-        return  (type, { code: 'ENOTJSON', message: 'packet error' })
+        return (type, { code: 'ENOTJSON', message: 'packet error' })
       }
     }
 
