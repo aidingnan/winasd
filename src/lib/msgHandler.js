@@ -81,7 +81,7 @@ class BledHandler extends MsgHandler {
       try {
         packet = JSON.parse(data)
       } catch (e) {
-        return done(type, { code: 'ENOTJSON', message: 'packet error' })
+        return  (type, { code: 'ENOTJSON', message: 'packet error' })
       }
     }
 
