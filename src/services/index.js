@@ -44,8 +44,8 @@ const EPERSISTENT = NewError('mount persistent partition failed', 'EPERSISTENT')
 const EUSERSTORE = NewError('user store load failed', 'EUSERSTORE')
 const EDEVICE = NewError('device info load failed', 'EDEVICE')
 const EBOUND = NewError('device cloud bound with error signature', 'EBOUND')
-const EECCINIT = NewError('ecc init error', 'EECCINIT')
-const EECCPRESET = NewError('ecc preset error', 'EECCPRESET')
+// const EECCINIT = NewError('ecc init error', 'EECCINIT')
+// const EECCPRESET = NewError('ecc preset error', 'EECCPRESET')
 const EApp404 = NewError('app not started', 'EAPP404')
 const ERace = NewError('operation in progress', 'ERACE')
 
@@ -188,9 +188,9 @@ class Prerequisite extends BaseState {
 
   initEcc (callback) {
     initEcc(Config.ecc.bus, (err, ecc) => err
-      ? callback(EECCINIT)
+      ? callback(err)
       : ecc.preset(err => err
-        ? callback(EECCPRESET)
+        ? callback(err)
         : callback(null, ecc)))
   }
 
