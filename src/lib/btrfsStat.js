@@ -3,6 +3,7 @@ const path = require('path')
 const child = require('child_process')
 
 const rimraf = require('rimraf')
+const mkdirp = require('mkdirp')
 
 const NewError = (message, code) => Object.assign(new Error(message), { code })
 const ESATA = NewError('sda not found', 'ESATA')
@@ -23,7 +24,7 @@ const checkSata = (callback) => {
 }
 
 const checkFormat = (callback) => {
-  child.exec('lsblk -fs | grep sda | awk "{ print $2 }"', (err, stdout, stderr) => {
+  child.exec("lsblk -fs | grep sda | awk '{ print $2 }'", (err, stdout, stderr) => {
     if (err || stderr) return callback(err || new Error(stderr))
     if (!stdout || stdout.toString().trim() !== 'btrfs') return callback(EFORMAT)
     callback(null)
@@ -54,4 +55,4 @@ const btrfsStat = (mountpoint, callback) => {
         : callback(null, 0x06))))
 }
 
-module.exports.btrfsStat = btrfsStat
+module.exports = btrfsStat
