@@ -55,8 +55,8 @@ class BLED extends require('events') {
   }
 
   // update ble advertisement
-  updateAdv (bound) {
-    this.ble && this.ble.updateAdv(bound)
+  updateAdv (bound, sata) {
+    this.ble && this.ble.updateAdv(bound, sata)
   }
 
   handleBleMessage (type, data) {

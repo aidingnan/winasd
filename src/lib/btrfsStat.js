@@ -5,7 +5,7 @@ const child = require('child_process')
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 
-const NewError = (message, code) => Object.assign(new Error(message), { code })
+const NewError = (message, code) => Object.assign(new Error(message), { code, errType: 'btrfsStat' })
 const ESATA = NewError('sda not found', 'ESATA')
 const ESIZE = NewError('sda size 0', 'ESIZE')
 const EFORMAT = NewError('sda format error', 'EFORMAT')
@@ -35,13 +35,15 @@ const CHECK_FILE = '9262693d-c79c-4bf3-9b3a-b87e668757b1'
 
 const checkVolume = (mountpoint, callback) => {
   const checkfile = path.join(mountpoint, CHECK_FILE)
+  // eslint-disable-next-line standard/no-callback-literal
+  const umountAndCallback = (...args) => child.exec('umount -f /dev/sda', _ => callback(...args))
   child.exec(`mount -t btrfs /dev/sda ${mountpoint}`, (err, stdout, stderr) => {
     if (err || stderr) return callback(EMOUNT)
     rimraf(checkfile, err => {
-      if (err) return callback(EVOLUME)
+      if (err) return umountAndCallback(EVOLUME)
       fs.writeFile(checkfile, '123456', err => {
-        if (err) return callback(EVOLUME)
-        callback(null)
+        if (err) return umountAndCallback(EVOLUME)
+        umountAndCallback(null)
       })
     })
   })

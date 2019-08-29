@@ -14,11 +14,10 @@ const GattAccessPointService = require('../bluez/serives/gatt-access-point-servi
  * BLE_DEVICE_CONNECTED
  */
 class Bluetooth extends DBusObject {
-  constructor(bound, localName = 'noname') {
+  constructor (bound, localName = 'noname') {
     super()
-    let b = bound ? 0x02 : 0x01
-    // let s = sn ? sn.slice(-8) : ''
-    // this.localName = hostname || s
+    const b = bound ? 0x02 : 0x01
+    const sata = 0x00
     this.localName = localName
     this.adv = new Advertisement('advertisement0', {
       Type: 'peripheral',
@@ -27,7 +26,7 @@ class Bluetooth extends DBusObject {
       // 1805 CTS
       // ServiceUUIDs: ['80000000-0182-406c-9221-0a6680bd0943'],
       ManufacturerData: [
-        [0xffff, ['ay', [b]]]
+        [0xffff, ['ay', [b, sata]]]
       ],
       IncludeTxPower: true
     })
@@ -62,25 +61,25 @@ class Bluetooth extends DBusObject {
     const service3 = new GattSerialService('service3', true)
     service3.on('WriteValue', (...args) => this.emit('CloudWrite', ...args))
     this.CloudUpdate = service3.rxIface.update.bind(service3.rxIface)
-    
+
     // gatt root
-    let gatt = new DBusObject('gatt')
+    const gatt = new DBusObject('gatt')
       .addInterface(new DBusObjectManager())
       .addChild(service1)
 
-    let gatt1 = new DBusObject('gatt1')
+    const gatt1 = new DBusObject('gatt1')
       .addInterface(new DBusObjectManager())
       .addChild(service2)
 
-    let gatt2 = new DBusObject('gatt2')
+    const gatt2 = new DBusObject('gatt2')
       .addInterface(new DBusObjectManager())
       .addChild(service3)
 
-    let NICGATT = new DBusObject('gatt3')
+    const NICGATT = new DBusObject('gatt3')
       .addInterface(new DBusObjectManager())
       .addChild(NICService)
 
-    let APGATT = new DBusObject('gatt4')
+    const APGATT = new DBusObject('gatt4')
       .addInterface(new DBusObjectManager())
       .addChild(APService)
 
@@ -92,13 +91,14 @@ class Bluetooth extends DBusObject {
       .addChild(APGATT)
   }
 
-  updateAdv(bound, localName) {
-    let b = bound ? 0x02 : 0x01
+  updateAdv (bound, sata, localName) {
+    const b = bound ? 0x02 : 0x01
+    sata = sata || 0x00
     this.adv.updateAdv({
       Type: 'peripheral',
       LocalName: localName || this.localName,
       ManufacturerData: [
-        [0xffff, ['ay', [b]]]
+        [0xffff, ['ay', [b, sata]]]
       ],
       IncludeTxPower: true
     })

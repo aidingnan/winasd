@@ -35,7 +35,7 @@ module.exports = {
     }
     if (packet.action === 'addAndActive') {
       if (this.localAuth.verify(packet.token)) {
-        this.net.connect(packet.body.ssid, packet.body.pwd, 
+        this.net.connect(packet.body.ssid, packet.body.pwd,
           (err, data) => done({ seq: packet.seq, error: err, data }))
       } else {
         const error = Object.assign(new Error('auth failed'), { code: 'EAUTH' })
@@ -43,6 +43,8 @@ module.exports = {
       }
     } else if (packet.action === 'addAndActiveAndBound') {
       this.handleConnectAndBound(packet, done)
+    } else if (packet.action === 'cleanVolume') {
+      this.handleCleanVolume(packet, done)
     }
   },
 
@@ -148,5 +150,12 @@ module.exports = {
       const bound = this.state.name() === 'Bound'
       this.ledService.runGroup(bound ? 'normal' : 'unbind')
     }
+  },
+
+  handleCleanVolume (packet, done) {
+    this.cleanVolume(error => {
+      if (error) return done({ seq: packet.seq, error })
+      done({ seq: packet.seq, data: {} })
+    })
   }
 }

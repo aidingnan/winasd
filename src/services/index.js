@@ -1,3 +1,4 @@
+/* eslint-disable no-return-assign */
 /*
  * @Author: JackYang
  * @Date: 2019-07-10 16:32:51
@@ -7,8 +8,8 @@
 
 const fs = require('fs')
 const path = require('path')
-const dns = require('dns')
-const UUID = require('uuid')
+// const dns = require('dns')
+// const UUID = require('uuid')
 const request = require('superagent')
 const Config = require('config')
 
@@ -23,6 +24,7 @@ const debug2 = require('debug')('ws:appService')
 
 const State = require('../lib/state')
 const DataStore = require('../lib/DataStore')
+const btrfsStat = require('../lib/btrfsStat')
 
 const Bled = require('./bled')
 const Winas = require('./winas')
@@ -40,8 +42,8 @@ const { reqBind, reqUnbind, verify, refresh } = require('../lib/lifecycle')
 const NewError = (message, code) => Object.assign(new Error(message), { code })
 
 const EPERSISTENT = NewError('mount persistent partition failed', 'EPERSISTENT')
-const EUSERSTORE = NewError('user store load failed', 'EUSERSTORE')
-const EDEVICE = NewError('device info load failed', 'EDEVICE')
+// const EUSERSTORE = NewError('user store load failed', 'EUSERSTORE')
+// const EDEVICE = NewError('device info load failed', 'EDEVICE')
 const EBOUND = NewError('device cloud bound with error signature', 'EBOUND')
 const EECCINIT = NewError('ecc init error', 'EECCINIT')
 const EECCPRESET = NewError('ecc preset error', 'EECCPRESET')
@@ -75,6 +77,13 @@ class BaseState extends State {
     debug2(...args)
   }
 
+  cleanVolume (callback) {
+    if (typeof callback === 'function') {
+      return callback(new Error('this function only can be called in Failed state'))
+    }
+    console.log(`[WARN] call cleanVolume in error state : ${this.name()}`)
+  }
+
   name () {
     return this.constructor.name
   }
@@ -82,6 +91,7 @@ class BaseState extends State {
 
 const homeDir = path.join(Config.volume.cloud, Config.cloud.domain, Config.cloud.id)
 const tmpDir = Config.volume.tmp
+const mountTestDir = path.join(homeDir, 'mountTest')
 
 const deviceCert = path.join(homeDir, 'device.crt')
 const caCert = path.join(homeDir, 'ca.crt')
@@ -104,9 +114,10 @@ class Prerequisite extends BaseState {
 
     remkdirp(tmpDir, err => (error = error || err, !--count && next()))
     mkdirp(homeDir, err => (error = error || err, !--count && next()))
+    mkdirp(mountTestDir, err => (error = error || err, !--count && next()))
 
     const next = () => {
-      if (error) return this.setState('Failed', EPERISTENT)
+      if (error) return this.setState('Failed', EPERSISTENT)
 
       error = null
       let certExists
@@ -165,12 +176,14 @@ class Prerequisite extends BaseState {
         } else {
           certExists = true
         }
+        this.ctx.certExists = certExists // record certExists
         if (typeof certExists === 'boolean') console.log(`certExists`, !!stats, count)
         if (!--count) nextNext()
       })
 
       const caData = Config.cloud.caList[Config.cloud.caIndex]
       fs.writeFile(caCert, caData, err => {
+        // eslint-disable-next-line no-unused-expressions
         err ? error = error || err : null
         console.log(`ca certificate written to ${caCert}`)
         if (!--count) nextNext()
@@ -179,7 +192,7 @@ class Prerequisite extends BaseState {
       const nextNext = () => error
         ? this.setState('Failed', error)
         : certExists
-          ? this.setState(!!this.ctx.userStore.data ? 'Bound' : 'Unbound')
+          ? this.setState(!!this.ctx.userStore.data ? 'Bound' : 'Unbound') // eslint-disable-line no-extra-boolean-cast
           : this.setState('Pending')
     }
   }
@@ -221,36 +234,18 @@ class Prerequisite extends BaseState {
   }
 }
 
-// This state is not used now, the code won't work
-/*
-class Provisioning extends BaseState {
+class Checking extends BaseState {
   enter () {
-    console.log('run in provision state')
-    this.ctx.bled = new Bled(this.ctx)
-    this.ctx.bled.on('connect', () => {})
-    this.ctx.localAuth = new LocalAuth(this.ctx)
-    this.ctx.net = new NetworkManager(this.ctx)
-    this.ctx.net.on('started', state => {
-      if (state !== 70) {
-        // this.ctx.net.connect('Xiaomi_123', 'wisnuc123456', (err, data) => {
-        //   console.log('Net Module Connect: ', err, data)
-        // })
-      }
-    })
-    this.ctx.net.once('connect', () => {
-      this.ctx.provision = new Provision(this.ctx)
-      this.ctx.provision.on('Finished', () => {
-        this.ctx.provision.removeAllListeners()
-        this.ctx.provision.on('error', () => {})
-        this.ctx.provision.destroy()
-        this.ctx.provision = undefined
-        child.exec('sync', () => {})
-        console.log('*** Provision finished, need reboot ***')
-      })
+    btrfsStat(mountTestDir, (err, stat) => {
+      this.ctx.btrfsStat = stat
+      if (err) return this.setState('Failed', err)
+      console.log(`(btrfsStat) stat: ${stat}, error: ${err.message}`)
+      this.ctx.certExists
+        ? this.setState(!!this.ctx.userStore.data ? 'Bound' : 'Unbound') // eslint-disable-line no-extra-boolean-cast
+        : this.setState('Pending')
     })
   }
 }
-*/
 
 class Pending extends BaseState {
   enter () {
@@ -283,8 +278,8 @@ class Pending extends BaseState {
               return this.setState('Unbound')
             }
           }
-          // unsure if everything ok in Pending state while fulfilled, 
-          // so we cloud not jump to `Bound` or `Unbound`, 
+          // unsure if everything ok in Pending state while fulfilled,
+          // so we cloud not jump to `Bound` or `Unbound`,
           // only can do binding or unbinding again.(no refresh counter if fulfilled)
           verify(this.ctx.ecc, signature, raw, (err, verified, fulfilled) => {
             if (err || !verified) {
@@ -508,6 +503,41 @@ class Failed extends BaseState {
     console.log(reason)
     this.ctx.ledService.runGroup('error')
   }
+
+  cleanVolume (callback) {
+    if (this.working) {
+      return process.nextTick(() => callback(NewError('already start clean volume', 'ERACE')))
+    }
+    if (!this.reason || this.reason.errType === 'btrfsStat') {
+      return process.nextTick(() => callback(NewError('clean volume in error state', 'ESTATE')))
+    }
+    if (this.ctx.btrfsStat !== 0x03 || this.ctx.btrfsStat !== 0x04) {
+      return process.nextTick(() => callback(NewError('this probm can not be fix', 'ESTATE')))
+    }
+    this.working = true
+    const done = err => {
+      this.working = false
+      callback(err)
+      this.setState('Checking')
+    }
+    this._cleanVolumeAsync()
+      .then(_ => done())
+      .catch(e => done(e))
+  }
+
+  async _cleanVolumeAsync () {
+    try {
+      await child.execAsync('umount -f /dev/sda')
+    } catch (e) {
+      if (!e.message || !e.message.includes('not mounted')) {
+        throw e
+      }
+    }
+
+    await child.execAsync(`mkfs.btrfs -f /dev/sda`)
+
+    await child.execAsync('partprobe')
+  }
 }
 
 /**
@@ -573,11 +603,21 @@ class AppService {
         }
         this._userStore = x
         // update ble advertisement
-        this.bled && this.bled.updateAdv((x && x.data) || false)
+        this.bled && this.bled.updateAdv((x && x.data) || false, this.btrfsStat)
         if (!x) return
         x.on('Update', () => {
-          this.bled && this.bled.updateAdv((x && x.data) || false)
+          this.bled && this.bled.updateAdv((x && x.data) || false, this.btrfsStat)
         })
+      }
+    })
+
+    Object.defineProperty(this, 'btrfsStat', {
+      get () {
+        return this._btrfsStat
+      },
+      set (x) {
+        this._btrfsStat = x
+        this.bled && this.bled.updateAdv((this.userStore && this.userStore.data) || false, x)
       }
     })
 
@@ -603,6 +643,7 @@ class AppService {
     })
 
     // initialize all service and properties
+    // eslint-disable-next-line no-new
     new Prerequisite(this)
   }
 
@@ -713,6 +754,10 @@ class AppService {
     this.state.requestUnbind(...args)
   }
 
+  cleanVolume (callback) {
+    this.state.cleanVolume(callback)
+  }
+
   PATCH (user, props, callback) {
     const op = props.op
     if (!op || !['shutdown', 'reboot', 'root', 'unroot'].includes(op)) {
@@ -797,5 +842,6 @@ AppService.prototype.Binding = Binding
 AppService.prototype.Bound = Bound
 AppService.prototype.Unbinding = Unbinding
 AppService.prototype.Failed = Failed
+AppService.prototype.Checking = Checking
 
 module.exports = AppService
