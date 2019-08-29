@@ -237,7 +237,7 @@ class Checking extends BaseState {
     btrfsStat(mountTestDir, (err, stat) => {
       this.ctx.btrfsStat = stat
       if (err) return this.setState('Failed', err)
-      console.log(`(btrfsStat) stat: ${stat}, error: ${err.message}`)
+      console.log(`(btrfsStat) stat: ${stat}`)
       this.ctx.certExists
         ? this.setState(!!this.ctx.userStore.data ? 'Bound' : 'Unbound') // eslint-disable-line no-extra-boolean-cast
         : this.setState('Pending')
