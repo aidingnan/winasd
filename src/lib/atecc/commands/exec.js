@@ -1,8 +1,8 @@
 const Promise = require('bluebird')
 
 /** command polling, from latest cryptoauthlib, lib/atca_execution.c **/
-const POLLING_INIT = 2
-const POLLING_FREQUENCY = 5
+const POLLING_INIT = 50
+const POLLING_FREQUENCY = 25
 const POLLING_MAX = 2500
 
 const CRC = data => {
@@ -51,32 +51,32 @@ module.exports = {
         return
       } else if (val === 0x01) {
         let err = new Error('checkmac or verify miscompare')
-        err.code = 'ECC_MISCOMPARE'
+        err.eccStatusCode = err.code = 'ECC_MISCOMPARE'
         throw err
       } else if (val === 0x03) {
         let err = new Error('parse error')
-        err.code = 'ECC_PARSE'
+        err.eccStatusCode = err.code = 'ECC_PARSE'
         throw err
       } else if (val === 0x05) {
         let err = new Error('ecc fault')
-        err.code = 'ECC_FAULT'
+        err.eccStatusCode = err.code = 'ECC_FAULT'
         throw err
       } else if (val === 0x0f) {
         let err = new Error('execution error')
-        err.code = 'ECC_EXECUTION'
+        err.eccStatusCode = err.code = 'ECC_EXECUTION'
         throw err
       } else if (val === 0x11) {
         // we dont use _handleResponse in wakeAsync, so this is considered an error
         let err = new Error('unexpected wake response')
-        err.code = 'ECC_WAKE'
+        err.eccStatusCode = err.code = 'ECC_WAKE'
         throw err
       } else if (val === 0xee) {
         let err = new Error('watchdog about to expire')
-        err.code = 'ECC_WATCHDOG'
+        err.eccStatusCode = err.code = 'ECC_WATCHDOG'
         throw err
       } else if (val === 0xff) {
         let err = new Error('crc or other communication error')
-        err.code = 'ECC_COMMUNICATION'
+        err.eccStatusCode = err.code = 'ECC_COMMUNICATION'
         throw err
       }
     }
@@ -99,6 +99,7 @@ module.exports = {
     try {
       await this.i2cWriteAsync(cmd)
       await Promise.delay(POLLING_INIT)
+      let error = null
       do {
         try {
           let rsp = await this.i2cReadAsync(75)
@@ -108,24 +109,27 @@ module.exports = {
         }
         await Promise.delay(POLLING_FREQUENCY)
       } while (maxDelayCount-- > 0)
+      throw error
     } finally {
       await this.idleAsync()
     }
   },
 
   async execAsync (packet) {
-    let count = 3
+    let count = 10
+    let error
     while (count--) {
       try {
         return this._execAsync(packet)
       } catch (e) {
-        if (e.code === 'ECC_FAULT' || e.code === 'ECC_WATCHDOG') {
-          continue
-        } else {
-          throw e
+        error = e
+        if (e.eccStatusCode) {
+          console.log(`ecc exec failure (${count}):`, e.eccStatusCode, e.message)
         }
       }
+      await Promise.delay(200)
     }
+    throw error
   },
 
   async dummyWriteAsync () {
