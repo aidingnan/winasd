@@ -53,7 +53,7 @@ const checkVolume = (mountpoint, callback) => {
 const btrfsStat = (mountpoint, callback) => {
   checkSata(err => err ? callback(err, 0x02)
     : checkFormat(err => err ? callback(err, 0x03)
-      : checkVolume(mountpoint, err => err ? callback(err, 0x04)
+      : checkVolume(mountpoint, err => err ? callback(err, 0x80)
         : callback(null, 0x06))))
 }
 
