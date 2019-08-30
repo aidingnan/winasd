@@ -147,8 +147,7 @@ module.exports = {
     // TODO question, when to start?
     if (this.localAuth) this.localAuth.stop()
     if (this.ledService) {
-      const bound = this.state.name() === 'Bound'
-      this.ledService.runGroup(bound ? 'normal' : 'unbind')
+      this.ledService.runGroup(this.colorGroup())
     }
   },
 
