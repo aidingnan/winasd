@@ -22,8 +22,17 @@ class BLED extends require('events') {
     super()
     this.msgHandler = msgHandler
     this.dbus = new DBus()
-    const localName = os.hostname()
-    this.ble = new Bluetooth(false, localName)
+
+    /**
+     * 1. 0x01 unbound
+     * 2. 0x02 bound
+     * 3. 0x03 pending - service unavailable
+     */
+    this.boundState = 0x03
+    this.sataState = 0x00
+    this.localName = os.hostname()
+
+    this.ble = new Bluetooth(this.boundState, this.sataState, this.localName)
     this.ble.on('LocalAuthWrite', this.handleBleMessage.bind(this, 'LocalAuthWrite')) // LocalAuth
     this.ble.on('NSWrite', this.handleBleMessage.bind(this, 'NSWrite')) // NetSetting
     this.ble.on('BLE_DEVICE_DISCONNECTED', this.handleBleMessage.bind(this, 'deviceDisconnected')) // Device Disconnected
@@ -54,9 +63,26 @@ class BLED extends require('events') {
     })
   }
 
-  // update ble advertisement
-  updateAdv (bound, sata) {
-    this.ble && this.ble.updateAdv(bound, sata)
+  _updateAdv () {
+    this.ble.updateAdv(this.boundState, this.sataState, this.localName)
+  }
+
+  updateBoundState (state) {
+    if (state !== 0x01 && state !== 0x02) throw new Error('bound state must be 0x01 or 0x02')
+    this.boundState = state
+    this._updateAdv()
+  }
+
+  updateSataState (state) {
+    if (state > 6 || state < 1) throw new Error('sata state must 1 <= state <= 6')
+    this.sataState = state
+    this._updateAdv()
+  }
+
+  updateLocalName (localName) {
+    if (typeof localName !== 'string' || !localName.length) throw new Error('localname must be string')
+    this.localName = localName
+    this._updateAdv()
   }
 
   handleBleMessage (type, data) {

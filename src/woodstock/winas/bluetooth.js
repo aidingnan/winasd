@@ -1,3 +1,5 @@
+const os = require('os')
+
 const DBusObject = require('../lib/dbus-object')
 const DBusProperties = require('../lib/dbus-properties')
 const DBusObjectManager = require('../lib/dbus-object-manager')
@@ -14,19 +16,13 @@ const GattAccessPointService = require('../bluez/serives/gatt-access-point-servi
  * BLE_DEVICE_CONNECTED
  */
 class Bluetooth extends DBusObject {
-  constructor (bound, localName = 'noname') {
+  constructor (boundState, sataState, localName = 'noname') {
     super()
-    const b = bound ? 0x02 : 0x01
-    const sata = 0x00
-    this.localName = localName
     this.adv = new Advertisement('advertisement0', {
       Type: 'peripheral',
-      LocalName: this.localName,
-      // ServiceUUIDs: ['LOCAL-AUTH', 'CLOUD'],
-      // 1805 CTS
-      // ServiceUUIDs: ['80000000-0182-406c-9221-0a6680bd0943'],
+      LocalName: localName,
       ManufacturerData: [
-        [0xffff, ['ay', [b, sata]]]
+        [0xffff, ['ay', [boundState, sataState]]]
       ],
       IncludeTxPower: true
     })
@@ -91,20 +87,18 @@ class Bluetooth extends DBusObject {
       .addChild(APGATT)
   }
 
-  updateAdv (bound, sata, localName) {
-    const b = bound ? 0x02 : 0x01
-    sata = sata || 0x00
+  updateAdv (boundState, sataState, localName = 'noname') {
     this.adv.updateAdv({
       Type: 'peripheral',
-      LocalName: localName || this.localName,
+      LocalName: localName,
       ManufacturerData: [
-        [0xffff, ['ay', [b, sata]]]
+        [0xffff, ['ay', [boundState, sataState]]]
       ],
       IncludeTxPower: true
     })
   }
 
-  mounted() {
+  mounted () {
     super.mounted()
     this.dbus.listen({
       sender: 'org.bluez',
@@ -112,9 +106,10 @@ class Bluetooth extends DBusObject {
     }, this.listen.bind(this))
   }
 
-  listen(m) {
+  listen (m) {
     // device add / remove
     if (m.path.startsWith('/org/bluez/hci0/') && m.interface === 'org.bluez.Device1') {
+      // eslint-disable-next-line no-prototype-builtins
       if (m.changed && m.changed.hasOwnProperty('ServicesResolved')) {
         console.log(m.changed.ServicesResolved ? 'BLE_DEVICE_CONNECTED' : 'BLE_DEVICE_DISCONNECTED')
         this.emit(m.changed.ServicesResolved ? 'BLE_DEVICE_CONNECTED' : 'BLE_DEVICE_DISCONNECTED')
