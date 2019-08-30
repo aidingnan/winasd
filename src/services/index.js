@@ -84,6 +84,19 @@ class BaseState extends State {
     console.log(`[WARN] call cleanVolume in error state : ${this.name()}`)
   }
 
+  async _cleanVolumeAsync () {
+    try {
+      await child.execAsync('umount -f /dev/sda')
+    } catch (e) {
+      if (!e.message || !e.message.includes('not mounted')) {
+        throw e
+      }
+    }
+    await child.execAsync(`mkfs.btrfs -f /dev/sda`)
+
+    await child.execAsync('partprobe')
+  }
+
   name () {
     return this.constructor.name
   }
@@ -410,15 +423,22 @@ class Binding extends BaseState {
 
 class Unbinding extends BaseState {
   // norefresh - no refresh counter
-  enter (norefresh) {
-    this.doUnbind(norefresh)
-      .then(() => this.setState('Unbound'))
-      .catch(e => this.setState('Failed', Object.assign(e, {
-        code: 'EUNBINDING'
-      })))
+  enter (norefresh, cleanVolume = false, callback = () => {}) {
+    this.doUnbind(norefresh, cleanVolume)
+      .then(() => {
+        callback(null, null)
+        this.setState('Unbound')
+      })
+      .catch(e => {
+        callback(e)
+        this.setState('Failed', Object.assign(e, {
+          code: 'EUNBINDING'
+        }))
+      })
   }
 
-  async doUnbind (norefresh) {
+  async doUnbind (norefresh, cleanVolume) {
+    if (cleanVolume) await this._cleanVolumeAsync()
     // delete user info
     await new Promise((resolve, reject) => this.ctx.userStore.save(null, err => err ? reject(err) : resolve()))
     // set default device name, ignore error
@@ -467,11 +487,7 @@ class Bound extends BaseState {
     this.unbindFlag = false
   }
 
-  // only from channel
-  /**
-   * @param {object} message - pipe message
-   */
-  requestUnbind (encrypted, callback) {
+  requestUnbind (encrypted, cleanVolume, callback) {
     if (this.unbindFlag) return callback(new Error('error state'))
     if (!this.ctx.token) return callback(new Error('network error'))
     this.unbindFlag = true
@@ -481,7 +497,7 @@ class Bound extends BaseState {
         return callback(err)
       }
       process.nextTick(() => callback(null, null))
-      this.setState('Unbinding', false)
+      this.setState('Unbinding', false, cleanVolume)
     })
   }
 
@@ -521,20 +537,6 @@ class Failed extends BaseState {
     this._cleanVolumeAsync()
       .then(_ => done())
       .catch(e => done(e))
-  }
-
-  async _cleanVolumeAsync () {
-    try {
-      await child.execAsync('umount -f /dev/sda')
-    } catch (e) {
-      if (!e.message || !e.message.includes('not mounted')) {
-        throw e
-      }
-    }
-
-    await child.execAsync(`mkfs.btrfs -f /dev/sda`)
-
-    await child.execAsync('partprobe')
   }
 }
 
