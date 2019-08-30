@@ -603,10 +603,10 @@ class AppService {
         }
         this._userStore = x
         // update ble advertisement
-        this.bled && this.bled.updateAdv((x && x.data) || false, this.btrfsStat)
+        this.bled && this.bled.updateBoundState((x && x.data) ? 0x02 : 0x01)
         if (!x) return
         x.on('Update', () => {
-          this.bled && this.bled.updateAdv((x && x.data) || false, this.btrfsStat)
+          this.bled && this.bled.updateBoundState((x && x.data) ? 0x02 : 0x01)
         })
       }
     })
@@ -617,7 +617,7 @@ class AppService {
       },
       set (x) {
         this._btrfsStat = x
-        this.bled && this.bled.updateAdv((this.userStore && this.userStore.data) || false, x)
+        this.bled && this.bled.updateSataState(x)
       }
     })
 
