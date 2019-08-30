@@ -56,8 +56,9 @@ module.exports = (appService) =>{
   router.post('/unbind', (req, res, next) => {
     if (!appService.localAuth) return res.status(400).end({ code: 'ESTATE' })
     if (!req.body.encrypted || !req.body.authToken) return res.status(400).end()
+    if (req.body.cleanVolume !== undefined && typeof req.body.cleanVolume !== 'boolean') return res.status(400).end()
     // verify localAuth token
-    if (!appService.localAuth || !appService.localAuth.verify(req.body.authToken)) return res.status(400).json( { code: 'EAUTH' })
+    if (!appService.localAuth || !appService.localAuth.verify(req.body.authToken)) return res.status(400).json({ code: 'EAUTH' })
     appService.requestUnbind(req.body.encrypted, req.body.cleanVolume, (err, data) => {
       console.log(err)
       if (err) return res.error(err)
