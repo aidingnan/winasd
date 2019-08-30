@@ -74,7 +74,7 @@ class BLED extends require('events') {
   }
 
   updateSataState (state) {
-    if (!(state >= 0x01 && state <= 0x04) || state !== 0x80) throw new Error('sata state must in 0x01 ~ 0x04 or 0x80')
+    if (!(state >= 0x01 && state <= 0x04) && state !== 0x80) throw new Error('sata state must in 0x01 ~ 0x04 or 0x80')
     this.sataState = state
     this._updateAdv()
   }
