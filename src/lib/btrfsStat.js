@@ -51,7 +51,7 @@ const checkVolume = (mountpoint, callback) => {
 
 // spec: https://github.com/aidingnan/winasd/blob/master/docs/spec.md
 const btrfsStat = (mountpoint, callback) => {
-  checkSata(err => err ? callback(err, err.code === 'ESATA' ? 0x01 : 0x02)
+  checkSata(err => err ? callback(err, 0x02)
     : checkFormat(err => err ? callback(err, 0x03)
       : checkVolume(mountpoint, err => err ? callback(err, 0x04)
         : callback(null, 0x06))))
