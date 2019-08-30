@@ -123,7 +123,7 @@ class Prerequisite extends BaseState {
     let error = null
 
     // target 1: prepare folders
-    let count = 2
+    let count = 3
 
     remkdirp(tmpDir, err => (error = error || err, !--count && next()))
     mkdirp(homeDir, err => (error = error || err, !--count && next()))
