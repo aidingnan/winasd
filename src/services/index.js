@@ -506,10 +506,10 @@ class Failed extends BaseState {
     if (this.working) {
       return process.nextTick(() => callback(NewError('already start clean volume', 'ERACE')))
     }
-    if (!this.reason || this.reason.errType === 'btrfsStat') {
+    if (!this.reason || this.reason.errType !== 'btrfsStat') {
       return process.nextTick(() => callback(NewError('clean volume in error state', 'ESTATE')))
     }
-    if (this.ctx.btrfsStat !== 0x03 || this.ctx.btrfsStat !== 0x04) {
+    if (this.ctx.btrfsStat !== 0x03 && this.ctx.btrfsStat !== 0x04) {
       return process.nextTick(() => callback(NewError('this probm can not be fix', 'ESTATE')))
     }
     this.working = true
