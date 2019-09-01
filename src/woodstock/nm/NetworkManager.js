@@ -22,14 +22,13 @@ class NetworkManager extends DBusObject {
     this.device = new Device(this)
 
     Object.defineProperty(this, 'devices', {
-      get() {
+      get () {
         return this.device && this.device.devices
       }
     })
 
-
     Object.defineProperty(this, 'aps', {
-      get() {
+      get () {
         return this.accessPoint && this.accessPoint.aps
       }
     })
@@ -59,63 +58,63 @@ class NetworkManager extends DBusObject {
     }
   }
 
-  mounted() {
+  mounted () {
     super.mounted()
-    this.Enable(false, err => {
-      this.Enable(true, () => {
-        // restart network
-        this.dbus.listen({
-          sender: 'org.freedesktop.NetworkManager',
-          path: '/org/freedesktop/NetworkManager'
-        }, () => {})
-        
-        this.dbus.driver.on('signal',  m => this.handleSignal(m))
+    // this.Enable(false, err => {
+    //   this.Enable(true, () => {
+    // restart network
+    this.dbus.listen({
+      sender: 'org.freedesktop.NetworkManager',
+      path: '/org/freedesktop/NetworkManager'
+    }, () => {})
     
-        this.dbus.driver.signal({
-          path: '/org/freedesktop/NetworkManager',
-          interface: 'org.freedesktop.NetworkManager',
-          member: 'DeviceAdded',
-          signature: 'o',
-          body: [
-            new OBJECT_PATH(this.objectPath())
-          ]
-        })
-    
-        this.dbus.driver.signal({
-          path: '/org/freedesktop/NetworkManager',
-          interface: 'org.freedesktop.NetworkManager',
-          member: 'DeviceRemoved',
-          signature: 'o',
-          body: [
-            new OBJECT_PATH(this.objectPath())
-          ]
-        })
-    
-        this.dbus.driver.signal({
-          path: '/org/freedesktop/NetworkManager',
-          interface: 'org.freedesktop.NetworkManager',
-          member: 'StateChanged',
-          signature: 'u',
-          body: [
-            new UINT32(70)
-          ]
-        })
-        
-        this.addSignalHandle('/org/freedesktop/NetworkManager', (m) => {
-          if (m.member === 'DeviceAdded' || m.member === 'DeviceRemoved') {
-            return this.emit('NM_DeviceChanged')
-          }
-          if (m.member === 'StateChanged') {
-            // console.log('NM_StateChanged', m.body[0].value)
-            return this.emit('NM_StateChanged', m.body[0].value)
-          }
-        })
-    
-        this.setting.mounted()
-        this.accessPoint.mounted()
-        this.device.mounted()
-      })
+    this.dbus.driver.on('signal',  m => this.handleSignal(m))
+
+    this.dbus.driver.signal({
+      path: '/org/freedesktop/NetworkManager',
+      interface: 'org.freedesktop.NetworkManager',
+      member: 'DeviceAdded',
+      signature: 'o',
+      body: [
+        new OBJECT_PATH(this.objectPath())
+      ]
     })
+
+    this.dbus.driver.signal({
+      path: '/org/freedesktop/NetworkManager',
+      interface: 'org.freedesktop.NetworkManager',
+      member: 'DeviceRemoved',
+      signature: 'o',
+      body: [
+        new OBJECT_PATH(this.objectPath())
+      ]
+    })
+
+    this.dbus.driver.signal({
+      path: '/org/freedesktop/NetworkManager',
+      interface: 'org.freedesktop.NetworkManager',
+      member: 'StateChanged',
+      signature: 'u',
+      body: [
+        new UINT32(70)
+      ]
+    })
+
+    this.addSignalHandle('/org/freedesktop/NetworkManager', (m) => {
+      if (m.member === 'DeviceAdded' || m.member === 'DeviceRemoved') {
+        return this.emit('NM_DeviceChanged')
+      }
+      if (m.member === 'StateChanged') {
+        // console.log('NM_StateChanged', m.body[0].value)
+        return this.emit('NM_StateChanged', m.body[0].value)
+      }
+    })
+
+    this.setting.mounted()
+    this.accessPoint.mounted()
+    this.device.mounted()
+    //   })
+    // })
   }
 
   Enable(enable, callback) {
