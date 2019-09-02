@@ -58,7 +58,7 @@ class NetworkManager extends DBusObject {
     }
   }
 
-  mounted () {
+  mounted() {
     super.mounted()
     // this.Enable(false, err => {
     //   this.Enable(true, () => {
@@ -66,9 +66,9 @@ class NetworkManager extends DBusObject {
     this.dbus.listen({
       sender: 'org.freedesktop.NetworkManager',
       path: '/org/freedesktop/NetworkManager'
-    }, () => {})
-    
-    this.dbus.driver.on('signal',  m => this.handleSignal(m))
+    }, () => { })
+
+    this.dbus.driver.on('signal', m => this.handleSignal(m))
 
     this.dbus.driver.signal({
       path: '/org/freedesktop/NetworkManager',
