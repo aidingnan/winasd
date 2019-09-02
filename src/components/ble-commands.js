@@ -5,6 +5,7 @@ const localAuth = require('./localAuth')
 const led = require('./led')
 const channel = require('./channel')
 const owner = require('./owner')
+const sata = require('./sata')
 
 // this is a higher order function
 // returns a racer function, which is also a higher order function
@@ -56,23 +57,27 @@ const addAndActiveAndBound = (ssid, password, encrypted, callback) =>
   })
 
 const cleanVolume = () => {
+  sata.format(err => {
+  })
 } 
 
-bled.on('message', packet => {
-  switch (packet.action) {
-    case 'addAndActive': {
-        addAndActive()
-      }
-      break
-    case 'addAndActiveAndBound': {
-        addAndActiveAndBound()
-      }
-      break
-    case 'cleanVolume': {
-        cleanVolume()
-      }
-      break
-    default:
-      break
+bled.on('message', msg => {
+  if (msg.charUUID === '70000003-0182-406c-9221-0a6680bd0943') {
+    switch (msg.action) {
+      case 'addAndActive': {
+          addAndActive()
+        }
+        break
+      case 'addAndActiveAndBound': {
+          addAndActiveAndBound()
+        }
+        break
+      case 'cleanVolume': {
+          cleanVolume()
+        }
+        break
+      default:
+        break
+    }
   }
 })

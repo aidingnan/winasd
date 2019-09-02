@@ -170,8 +170,8 @@ class BLED extends EventEmitter {
   }
 
   // char uuid 
-  // 60000002-0182-406c-9221-0a6680bd0943
-  // 70000002-0182-406c-9221-0a6680bd0943
+  // 60000002-0182-406c-9221-0a6680bd0943 auth
+  // 70000002-0182-406c-9221-0a6680bd0943 command
   send (charUUID, obj) {
     this.ble.send(charUUID, obj)
   }
