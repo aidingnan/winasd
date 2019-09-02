@@ -78,3 +78,37 @@ winas模块侦听Owner即可确定是否该启动/停止winas服务，同时它�
 1, 给出Channel所有可以on的消息类型和数据格式定义，补充到本文档中
 2, 给出绑定时需要向云发出的http请求的api语义定义，补充到interfaces.md文档中（依赖的接口）。
 
+# 详细设计
+
+## Channel
+
+Channel的责任是维护与aws iot的mqtt连接。
+
+外部依赖：
+
+1. aws iot的mqtt
+2. 对网络状态的检查（暂时不做）
+3. 对ntp对时的检查
+    - `timedatectl timesync-status`可polling ntp状态
+    - `timedatectl timesync-status --monitor`可侦听ntp状态
+
+内部责任与资源：
+
+1. CA写入文件系统
+2. 如果没有证书自己去取
+3. 定时更新token
+
+外部责任：
+
+1. 分发消息，如果消息为混杂消息，应该分开emit；
+2. 提供一个reconnect方法；（考虑到目前绑定解绑业务时有断连重连的设计）；
+3. 提供send方法供外部模块发送mqtt消息；
+4. 有一个连接状态
+5. 增加一个设备证书状态（none, offline, online），这个不急着实现；
+    - none是无证书
+    - offline是有离线证书
+    - online是证书在线检查过
+
+未知问题：
+
+Channel简单使用on方法可能会在mqtt协议增加的时候出现扩展困难；到时候再考虑把subscribe mqtt endpoints的能力暴露出去，暂时用简单办法hardcode消息类型；
