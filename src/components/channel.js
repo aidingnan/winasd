@@ -9,13 +9,9 @@ const request = require('request')
 const Client = require('../lib/mqttClient')
 const AWSCA = require('../lib/awsCA')
 
-// const storageConf = Config.get('storage')
 const IOTConf = Config.get('iot')
 const certFolder = path.join(Config.volume.cloud, Config.cloud.domain, Config.cloud.id)
-const crtName = 'device.crt'
-
 const deviceCert = path.join(certFolder, 'device.crt')
-
 const deviceSN = Config.cloud.id
 
 class Base extends State {
@@ -78,7 +74,7 @@ class Connecting extends Base {
 
     conn = new Client({
       clientCertificates: [
-        Buffer.from(fs.readFileSync(path.join(certFolder, crtName))
+        Buffer.from(fs.readFileSync(deviceCert)
           .toString()
           .split('\n')
           .filter(x => !!x && !x.startsWith('--'))
@@ -210,6 +206,13 @@ class Failed extends Base {
 /***
  * Channel 负责连接AWS IoT,监听 Iot 消息
  * 连接使用telsa + ecc
+ * emit events
+ * ***ChannelConnected*** Channel 连接到AWS Cloud
+ * ***token***
+ * ***pipe***
+ * ***users***
+ * ***checkout***
+ * ***download***
  */
 class Channel extends require('events') {
   constructor () {
