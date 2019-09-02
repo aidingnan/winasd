@@ -206,13 +206,14 @@ class Failed extends Base {
 /***
  * Channel 负责连接AWS IoT,监听 Iot 消息
  * 连接使用telsa + ecc
+ *
  * emit events
- * ***ChannelConnected*** Channel 连接到AWS Cloud
- * ***token***
- * ***pipe***
- * ***users***
- * ***checkout***
- * ***download***
+ * 1. ChannelConnected
+ * 2. token
+ * 3. pipe
+ * 4. users
+ * 5. checkout
+ * 6. download
  */
 class Channel extends require('events') {
   constructor () {
