@@ -45,7 +45,7 @@ class Advertisement extends DBusObject {
           new ARRAY('a{sv}')
         ]
       }, err => {
-        console.log(err)
+        if (err) console.log('error registering ble advertisement', err.message)
       })
     })
   }

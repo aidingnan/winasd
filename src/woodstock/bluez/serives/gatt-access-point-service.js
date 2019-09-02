@@ -61,9 +61,9 @@ class GattAccessPointService extends DBusObject {
       body: [ new OBJECT_PATH(this.objectPath()) ]
     }, (err, data) => {
       if (err) {
-        console.log('unregister application', err.code, err.message)
+        // console.log('unregister application', err.code, err.message)
       } else {
-        console.log('unregister application succeeded')
+        // console.log('unregister application succeeded')
       }
 
       this.dbus.driver.invoke({
@@ -77,7 +77,7 @@ class GattAccessPointService extends DBusObject {
           new ARRAY('a{sv}')
         ]
       }, (err, data) => {
-        console.log('register application', err, data)
+        // console.log('register application', err, data)
       }) 
     }) 
   }

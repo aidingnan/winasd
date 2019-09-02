@@ -1,3 +1,4 @@
+const path = require('path')
 const os = require('os')
 
 const DBusObject = require('../lib/dbus-object')
@@ -106,16 +107,46 @@ class Bluetooth extends DBusObject {
     }, this.listen.bind(this))
   }
 
+  /**
+  disconnected { path: '/org/bluez/hci0/dev_D4_6A_6A_A1_46_48',
+    interface: 'org.bluez.Device1',
+    changed: { ServicesResolved: false, Connected: false },
+    invalidated: [] }
+  connected { path: '/org/bluez/hci0/dev_D4_6A_6A_A1_46_48',
+    interface: 'org.bluez.Device1',
+    changed: { ServicesResolved: true },
+    invalidated: [] }
+  */
   listen (m) {
     // device add / remove
     if (m.path.startsWith('/org/bluez/hci0/') && m.interface === 'org.bluez.Device1') {
       // eslint-disable-next-line no-prototype-builtins
       if (m.changed && m.changed.hasOwnProperty('ServicesResolved')) {
-        console.log(m.changed.ServicesResolved ? 'BLE_DEVICE_CONNECTED' : 'BLE_DEVICE_DISCONNECTED')
-        this.emit(m.changed.ServicesResolved ? 'BLE_DEVICE_CONNECTED' : 'BLE_DEVICE_DISCONNECTED')
+        const resolved = m.changed.ServicesResolved
+        const addr = path.basename(m.path).slice(4).split('_').join(':')
+        if (resolved) {
+          this.emit('BLE_DEVICE_CONNECTED', addr) 
+        } else {
+          this.emit('BLE_DEVICE_DISCONNECTED', addr)
+        }
+        // this.emit(resolved ? 'BLE_DEVICE_CONNECTED' : 'BLE_DEVICE_DISCONNECTED')
       }
     }
   }
+
+  send (charUUID, obj) {
+    const buf = Buffer.from(JSON.stringify(obj))
+    switch (charUUID) {
+      case '60000002-0182-406c-9221-0a6680bd0943':
+        this.LocalAuthUpdate(buf)
+        break
+      case '70000002-0182-406c-9221-0a6680bd0943':
+        this.NSUpdate(buf)
+        break
+      default:
+        break
+    } 
+  } 
 }
 
 module.exports = Bluetooth
