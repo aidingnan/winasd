@@ -1,8 +1,8 @@
-# Components
+# 1. Components
 
 本文档用于分析接口文档给出的外部行为约定，给出内部组件设计要求。
 
-## 问题
+## 1.1. 问题
 
 目前的代码实现了接口协议的绝大多数行为要求；主要的问题是模块化的粒度太粗，重点体现在主状态机的每个状态承担的责任太多。
 
@@ -10,7 +10,7 @@
 
 在目前的设计中接口上出现了批处理式的业务逻辑，而相应的实现代码中出现了多步骤的操作和等待逻辑，但整个过程的依赖性没有清晰的表达为组件的依赖性，而是在过程代码中体现。这种代码难以测试，体现在**需要mock的外部依赖不清晰，构造一个最小化的可测试模块困难**。
 
-## 责任分析
+## 1.2. 责任分析
 
 在`prerequisite`中出现的`deviceCert`文件读取，实际上是channel模块内部需求，如果`channel`模块独立，该文件读取不该出现在全局的初始化之中，`channel`模块可以自己处理向云端索取证书的工作。
 
@@ -20,7 +20,7 @@
 
 修正的方法是：负责`user`的模块，在未绑定状态下仍然应该用`null`持久化存储，表示设备的未绑定状态；这样可以区分未绑定还是绑定状态未本地存储两种状态。
 
-### Prerequisite
+### 1.2.1. Prerequisite
 
 在当前的系统初始化时有8个异步并发操作：
 
@@ -35,7 +35,7 @@
 
 其中4/8应并入channel，3并入负责user的模块，ecc是系统启动前置条件，led初始化应该是led模块内部的事情；其他信息载入和准备目录可并发，所以初始化过程原则上只有一个target即可，而且该过程没有重入要求，无需单独建立状态；但达到这种状态需要每个模块单独重构完成。
 
-### Channel责任
+### 1.2.2. Channel责任
 
 实际上在每个状态下重建Channel的必要性是没有的。
 
@@ -49,7 +49,7 @@ Channel模块的核心责任是：
 
 需要Channel信息的详细定义，以决定外部可以subscribe/on channel的那些类型消息；
 
-### Owner责任
+### 1.2.3. Owner责任
 
 目前主要的设计缺失在Owner模块上；Owner模块的责任主要是体现两个设计：
 
@@ -65,22 +65,22 @@ Owner模块应该：
 
 现有Lifecycle部分代码可以直接并入`Owner`模块，这是核心业务，而且这样剥离后Owner的责任很少，代码量不多。
 
-### Device责任
+### 1.2.4. Device责任
 
 Device模块负责维护和Device信息相关的部分，例如display name，root与否等等；如果现有的Channel协议没有明确分开消息类型，可以和Owner模块共同侦听同样的消息，但只处理自己感兴趣的部分；
 
-### Winas责任
+### 1.2.5. Winas责任
 
 winas模块侦听Owner即可确定是否该启动/停止winas服务，同时它还可以为winas cache一些云端请求，如果winas处于重启过程中；
 
-## TODO
+## 1.3. TODO
 
 1, 给出Channel所有可以on的消息类型和数据格式定义，补充到本文档中
 2, 给出绑定时需要向云发出的http请求的api语义定义，补充到interfaces.md文档中（依赖的接口）。
 
-# 详细设计
+# 2. 详细设计
 
-## Channel
+## 2.1. Channel
 
 Channel的责任是维护与aws iot的mqtt连接。
 
@@ -112,3 +112,101 @@ Channel的责任是维护与aws iot的mqtt连接。
 未知问题：
 
 Channel简单使用on方法可能会在mqtt协议增加的时候出现扩展困难；到时候再考虑把subscribe mqtt endpoints的能力暴露出去，暂时用简单办法hardcode消息类型；
+
+## 2.2. Bled
+
+Bled通过ble的advertisement和gatt服务提供客户端服务。
+
+外部依赖：
+
+1. dbus
+2. LocalAuth服务；
+
+内部责任与资源：
+
+1. ble为无态模块
+2. ble静态定义部分advertisement内容和全部gatt服务类型（characteristics）
+
+外部责任：
+
+1. 每个gatt服务需要提供一个nodecallback形式的handler；
+2. 提供注册方法
+
+初始化：
+
+1. 初始化的localname使用hostname，来自全局配置；
+2. 初始化的bound和sata状态使用0x00；
+    - 更新sata的责任是初始化部分代码，在发生格式化之后要更新；
+    - 更新bound的责任是owner模块；
+
+在没有handler的情况下，来自客户端的服务返回EUnavailable。
+
+设计：
+
+bled比较难设计成express的模式，主要原因有二：
+
+1. connected和disconnected事件对localauth有影响；
+2. 存在需要emit progress的服务，这种服务需要把output抽象成stream才行，不是callback形式函数能解决的；
+
+所以直接采用emitter方式来设计bled行为
+
+1. emit attached事件，表示info可用；目前没什么用；
+2. emit connected和disconnected事件；提供connected属性（true/false）；
+3. emit message事件，数据中提供service uuid；所有handler可以on到这一个事件上，自己通过service uuid和action区分；
+4. 提供send方法用于发送消息；
+5. 暂不清楚对于authorizing状态是否要特殊处理，例如block所有其他访问；
+6. 提供一个可注册的authorizer，authorizer是一个同步函数，返回true/fase，除了local auth服务之外均使用该api先检查授权；
+
+该设计导致初始化时，ble是所有其他业务服务的依赖性。
+
+内部资源和状态一览：
+
+- dbus
+- ble模块
+- adv的三个字段，name, sata, bound
+- authorizer，如果无authorizer除了local auth其他服务不可用
+
+状态：
+
+1. dbus错误，无法连接，模块不可用
+2. dbus上注册ble服务错误，模块不可用
+
+阻塞：
+
+1. 无阻塞，对adv的更新如果发生在attached事件之前，直接更新内部状态，在attached的时候会更新adv。
+
+## 2.3. ECC
+
++ 内置了init代码，利用队列阻塞
++ 如果初始化错误会emit error
++ 初始化成功会emit ready
+
+新的文件是`lib/atecc/atecc`；
+
+内部有error和ecc两个成员，如果均为null，说明初始化未完成；在初始化成功时会设置ecc成员，在初始化失败时会设置error成员；但外部模块无需去检查内部状态，可以直接调用接口方法，如果初始化失败会返回错误，error code设置为`EUNAVAIL`。
+
+## 2.4. Sata
+
+sata作为独立模块，承担检查sata状态（status）和格式化两个责任。
+
+sata提供可外部访问的成员`status`，值的范围除了0x02, 0x03, 0x04, 0x80等spec定义的状态值之外，还有：
+- 0x00，表示首次检测未完成；
+- 0xff，表示最近一次检测未能成功遇到意外操作错误；
+
+sata继承EventEmitter，在每次更新status的时候emit `statusUpdate`事件和最新的status值，但不保证status值一定变化。
+
+format方法仅在0x03, 0x04和0x80状态下可用，如果是0x80，format会检查sda是否已经mount并尝试unmount，在其他两个状态下不会做此检查；format失败会返回错误；无论format成功与否均会重新检查sata状态。
+
+外部依赖模块只需要观察sata状态的，可以先检查status，如果status不满足要求，可以侦听statusUpdate；业务上，status不走循环，目标是走向0x80，抵达0x80之后依赖模块即可工作。
+
+目前winas服务和sata format的互斥代码层面没有表述，只有服务实现的时候先关闭winas（通过迁移owner到unbound，而不是直接操作winas）。
+
+
+
+
+
+
+
+
+
+
