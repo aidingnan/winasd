@@ -18,6 +18,17 @@ class Base extends State {
   debug (...args) {
     debug(...args)
   }
+
+  get name () {
+    return this.constructor.name
+  }
+
+  reconnect () {}
+
+  send (topic, data, opts, callback) {
+    process.nextTick(() =>
+      callback(Object.assign(new Error('can not send in current state: ' + this.name), { code: 'ESTATE' })))
+  }
 }
 
 class Pending extends State {
@@ -29,15 +40,28 @@ class Pending extends State {
         this.setState('Connecting')
       }))
       .catch(_ => setTimeout(() => loop(), 3000))
-    fs.lstat(deviceCert, err => err ? loop() : this.setState('Connecting'))
+
+    this.waitNTPAsync()
+      .then(_ => fs.lstat(deviceCert, err =>
+        err ? loop() : this.setState('Connecting')))
+      .catch(e => this.setState('Failed', Object.assign(e, { code: 'ENTP' })))
+  }
+
+  async waitNTPAsync () {
+    const timeout = new Date().getTime() + 10 * 1000
+    while (true) {
+      if (timeout < new Date().getTime()) throw new Error('ntp sync timeout')
+      if ((await child.execAsync(`timedatectl| grep sync | awk '{ print $4 }'`)).toString().trim() === 'yes') { return }
+      await Promise.delay(1000)
+    }
   }
 }
 
 class Connecting extends Base {
-  enter (callback) {
+  enter (callback = () => {}) {
     const cb = (err, connection, token, device) => {
       if (err) {
-        callback && callback(err)
+        callback(err)
         return this.setState('Failed', err)
       }
       this.setState('Connected', connection, token, device)
@@ -117,8 +141,6 @@ class Connecting extends Base {
     })
     conn.on('offline', () => cb(new Error('offline')))
   }
-
-  connect () {}
 }
 
 class Connected extends Base {
@@ -173,7 +195,13 @@ class Connected extends Base {
     }, this.refreshTokenTime)
   }
 
-  connect () {}
+  reconnect () {
+    this.setState('Connecting')
+  }
+
+  send (topic, data, opts = { qos: 1 }, callback = () => {}) {
+    this.connection.publish(topic, JSON.stringify(data), opts, callback)
+  }
 
   exit () {
     this.connection.removeAllListeners()
@@ -198,8 +226,8 @@ class Failed extends Base {
     clearTimeout(this.timer)
   }
 
-  connect () {
-    this.setState('Connecting')
+  reconnect () {
+    this.setState('Pending')
   }
 }
 
@@ -254,17 +282,21 @@ class Channel extends require('events') {
     }
   }
 
-  connect () {
-    this.state.connect()
+  reconnect () {
+    this.state.reconnect()
+  }
+
+  send (topic, data, opts, callback) {
+    this.state.send(topic, data, opts, callback)
   }
 
   get status () {
-    return this.state.constructor.name
+    return this.state.name
   }
 
   view () {
     return {
-      state: this.status
+      state: this.state.name
     }
   }
 
@@ -279,4 +311,4 @@ Channel.prototype.Connected = Connected
 Channel.prototype.Failed = Failed
 Channel.prototype.Pending = Pending
 
-module.exports = Channel
+module.exports = new Channel()
