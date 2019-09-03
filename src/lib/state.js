@@ -9,7 +9,7 @@ class State {
     ctx.state = this
     this._enter(...args)
     if (ctx instanceof EventEmitter) {
-      ctx.emit(this.constructor.name, ...args)
+      ctx.emit(this.constructor.name)
     }
   }
 
