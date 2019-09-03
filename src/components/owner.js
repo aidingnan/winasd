@@ -1,10 +1,13 @@
 const path = require('path')
 const fs = require('fs')
+const child = require('child_process')
 const EventEmitter = require('events')
 const consts = require('constants')
 
 const uuid = require('uuid')
 const config = require('config')
+const debug = require('debug')('ws:owner')
+
 const ecc = require('../lib/atecc/atecc')
 const channel = require('./channel')
 const { reqBind, reqUnbind, verify } = require('../lib/lifecycle')
@@ -49,6 +52,7 @@ class State {
   }
 
   contextError (err) {
+    debug('context error', err)
     this.setState(Failed, err)    
   }
 }
@@ -87,7 +91,9 @@ class Binding extends State {
       if (err) {
         this.callback(err) 
       } else {
+        debug('bind data', data)
         this.callback(null)
+        this.ctx.channel.reconnect()
       } 
       if (!this.exited) this.setState(Idle)
     })
@@ -106,7 +112,9 @@ class Unbinding extends State {
       if (err) {
         this.callback(err)
       } else {
+        debug('unbind data', data)
         this.callback(null)
+        this.ctx.channel.reconnect()
       }
       if (!this.exited) this.setState(Idle)
     })
@@ -128,14 +136,9 @@ class Owner extends EventEmitter {
     this.tmpFile = path.join(opts.tmpDir, uuid.v4()) 
     this.channel = opts.channel
 
-    this.channel.on('token', token => {
-      console.log('channel emitting token', token)
-      this.token = token
-    })
-
-    this.channel.on('ChannelConnected', msg => {
-      this.handleNext(this.handleChannelMessage.bind(this, msg))
-    })
+    this.channel.on('token', token => this.token = token)
+    this.channel.on('ChannelConnected', msg => this.handleChannelConnected(msg))
+      // this.handleNext(this.handleChannelConnected.bind(this, msg)))
 
     this.ecc = opts.ecc
     this.state = new Idle(this)
@@ -149,7 +152,8 @@ class Owner extends EventEmitter {
       if (this.owner !== undefined) return  // useless if owner already set
       try {
         this.cachedOwner = JSON.parse(data) 
-        this.emit('owner', owner)
+        debug('emitting cached owner', this.cachedOwner)
+        this.emit('owner', this.cachedOwner)
       } catch (e) {
         return
       }
@@ -162,6 +166,7 @@ class Owner extends EventEmitter {
   // this process should be atomic and has no dependency on state
   // this process should be synchronized (aka, one after another) to avoid race
   handleChannelConnected (msg) {
+    debug(msg)
     let err = new Error('bad owner message from channel')
     if (!msg.info) return this.state.contextError(err)
 
@@ -181,15 +186,17 @@ class Owner extends EventEmitter {
       }
 
       let { owner, username, phone } = msg
-      if (!owner) owner = { id: owner, username, phone }
+      owner = owner ? { id: owner, username, phone } : null
 
-      if (this.owner && this.owner.id !== owner.id) {
+      if (this.owner && owner && this.owner.id !== owner.id) {
         let err = new Error('owner update not allowed')
         return this.state.contextError(err)
       }
 
       this.owner = owner
       this.saveNext(this.saveOwner.bind(this))
+
+      debug('emitting cloud owner', owner)
       this.emit('owner', owner)
     })
   }
@@ -211,11 +218,11 @@ class Owner extends EventEmitter {
   }
 
   saveOwner (callback) {
-    const { O_CREAT, O_WRONLY, O_TRUNC, O_DIRECT } = consts
-    const flag = O_CREAT | O_WRONLY | O_TRUNC | O_DIRECT 
-    fs.writeFile(this.tmpFile, JSON.stringify(this.owner), flag, err => {
+    // const { O_CREAT, O_WRONLY, O_TRUNC, O_DIRECT } = consts
+    // const flag = O_CREAT | O_WRONLY | O_TRUNC | O_DIRECT 
+    fs.writeFile(this.tmpFile, JSON.stringify(this.owner), err => {
       if (err) return callback(err)
-      fs.rename(this.tmpFile, this.file, err => {
+      fs.rename(this.tmpFile, this.filePath, err => {
         if (err) return callback(err)
         child.exec('sync', callback)
       })

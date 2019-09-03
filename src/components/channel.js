@@ -1,6 +1,7 @@
+const Promise = require('bluebird')
 const fs = require('fs')
 const path = require('path')
-const child = require('child_process')
+const child = Promise.promisifyAll(require('child_process'))
 const Config = require('config')
 const State = require('../lib/state')
 const { NetworkAddr, deviceName, SoftwareVersion } = require('../lib/device')
@@ -148,6 +149,7 @@ class Connecting extends Base {
 
 class Connected extends Base {
   enter (connection, token, device) {
+try {
     clearTimeout(this.ctx.delayCleanTimer)
     // confirm first
     child.exec('cowroot-confirm', () => {})
@@ -171,7 +173,12 @@ class Connected extends Base {
       this.refreshToken() // refresh token
     }, this.refreshTokenTime)
 
+    debug('ChannelConnected', device)
+
     this.ctx.emit('ChannelConnected', device)
+} catch (e) {
+  console.log(e)
+}
   }
 
   // start refresh token
@@ -221,6 +228,7 @@ class Connected extends Base {
 class Failed extends Base {
   enter (error) {
     // console.log('Failed: ', error)
+    debug('Failed', error)
     this.error = error
     this.timer = setTimeout(() => this.setState('Connecting'), 1000 * 10)
   }
@@ -249,11 +257,12 @@ class Failed extends Base {
 class Channel extends require('events') {
   constructor () {
     super()
+    this._token = ''
 
     Object.defineProperty(this, 'token', {
       get: () => this._token,
       set: x => {
-        this.token = x
+        this._token = x
         this.emit('token', x)
       }
     })

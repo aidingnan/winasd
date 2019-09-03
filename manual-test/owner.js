@@ -3,6 +3,7 @@ const fs = require('fs')
 const config = require('config')
 const mkdirp = require('mkdirp')
 const rimraf = require('rimraf')
+const request = require('superagent')
 
 if (!config.cloud.id) {
   const serial = fs.readFileSync('/run/cowroot/root/data/init/sn').toString().trim()
@@ -26,6 +27,49 @@ mkdirp.sync(tmpDir)
 mkdirp.sync(homeDir)
 fs.writeFileSync(caCert, caData)
 
-const owner = require('../src/components/owner')
+const ownership = require('../src/components/owner')
 
-owner.on('StateEntering', state => console.log(state))
+ownership.on('StateEntering', state => console.log(state))
+
+let token, encrypted
+
+request
+  .get('https://aws-cn.aidingnan.com/c/v1/user/password/token')
+  .query({ 
+    username: '15618429080', 
+    password: '',
+    clientId: '123456',
+    type: 'pc'
+  })  
+  .then(res => {
+    token = res.body.data.token
+    console.log('token:', token)
+
+    request
+      .post('https://aws-cn.aidingnan.com/c/v1/user/encrypted')
+      .set('Authorization', token)
+      .then(res => { 
+        encrypted = res.body.data.encrypted 
+        console.log('encrypted:', encrypted)
+
+
+      })
+      .catch(e => console.log('failed to retrieve encrypted me', e))
+  })
+  .catch(e => console.log('failed to retrieve cloud token'))
+
+let count = 0
+ownership.on('owner', owner => {
+  if (1 === count++) {
+    if (owner === null) {
+      ownership.bind(encrypted, (err, data) => {
+        console.log('bind result', err, data) 
+      })
+    } else {
+      ownership.unbind(encrypted, (err, data) => {
+        console.log('unbind result', err, data)
+      })
+    }
+  }
+})
+
