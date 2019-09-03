@@ -9,6 +9,8 @@ const request = require('request')
 const Client = require('../lib/mqttClient')
 const AWSCA = require('../lib/awsCA')
 
+const ecc = require('../lib/atecc/atecc')
+
 const IOTConf = Config.get('iot')
 const certFolder = path.join(Config.volume.cloud, Config.cloud.domain, Config.cloud.id)
 const deviceCert = path.join(certFolder, 'device.crt')
@@ -109,7 +111,8 @@ class Connecting extends Base {
       host: IOTConf.endpoint,
       keepalive: 5,
       clientPrivateKey: (data, callback) =>
-        this.ctx.ctx.ecc.sign({ data, der: true }, callback),
+        // this.ctx.ctx.ecc.sign({ data, der: true }, callback),
+        ecc.sign({ data, der: true }, callback),
       clientCertificateVerifier: {
         algorithm: '',
         sign: ''

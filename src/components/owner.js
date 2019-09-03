@@ -1,4 +1,8 @@
+const path = require('path')
+const fs = require('fs')
+const EventEmitter = require('events')
 const consts = require('constants')
+
 const uuid = require('uuid')
 const config = require('config')
 const ecc = require('../lib/atecc/atecc')
@@ -22,7 +26,7 @@ class State {
     let ctx = this.ctx
     let nextState = new NextState(ctx, ...args)
     ctx.state = nextState
-    ctx.emit('stateEntering', ctx.state.constructor.name)
+    ctx.emit('StateEntering', ctx.state.constructor.name)
     ctx.state.enter()
   }
 
@@ -121,8 +125,14 @@ class Owner extends EventEmitter {
     super()
     this.filePath = opts.filePath
     this.tmpDir = opts.tmpDir
-    this.tmpFile = path.join(tmpDir, uuid.v4()) 
+    this.tmpFile = path.join(opts.tmpDir, uuid.v4()) 
     this.channel = opts.channel
+
+    this.channel.on('token', token => {
+      console.log('channel emitting token', token)
+      this.token = token
+    })
+
     this.channel.on('ChannelConnected', msg => {
       this.handleNext(this.handleChannelMessage.bind(this, msg))
     })
@@ -143,7 +153,7 @@ class Owner extends EventEmitter {
       } catch (e) {
         return
       }
-    } 
+    }) 
   }
 
   // this function cannot be put into state, including base state
