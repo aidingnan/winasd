@@ -25,7 +25,7 @@ const CreateArgs = () => COLORS[Math.floor(Math.random() * 6)]
  */
 class LocalAuth {
   constructor (ctx) {
-    this.ctx = ctx
+    // this.ctx = ctx
     this._state = 'Idle' // 'Workding'
     this.timer = undefined // working timer
     this.secret = RandomKey()
@@ -39,6 +39,21 @@ class LocalAuth {
         this._state = v
       }
     })
+
+    const verifyToken = this.verify.bind(this)
+    bled.setAuth(verifyToken)
+
+    bled.on('disconnect', () => {
+      // TODO
+    })
+
+    bled.on('message', msg => {
+      if (msg.charUUID === '60000003-0182-406c-9221-0a6680bd0943') {
+        switch (msg.op) {
+          // case
+        }
+      }
+    })
   }
 
   // request hardware auth/ transfer to authing state
@@ -46,7 +61,7 @@ class LocalAuth {
     if (this.state === 'Idle') {
       const args = CreateArgs()
       try {
-        this.ctx.ledService.run(args[0], args[1], 60 * 1000) // start led
+        led.run(args[0], args[1], 60 * 1000) // start led
         this.args = args
         console.log('LocalAuth ==> ', args)
         this.state = 'Working'
@@ -65,7 +80,7 @@ class LocalAuth {
   stop () {
     if (this.state === 'Idle') return
     clearTimeout(this.timer)
-    this.ctx.ledService.runGroup(this.ctx.colorGroup())
+    led.runGroup(this.ctx.colorGroup())
     this.state = 'Idle'
   }
 
@@ -91,6 +106,7 @@ class LocalAuth {
   }
 
   // verify token
+  // the bound version is set to bled
   verify (token) {
     try {
       // eslint-disable-next-line node/no-deprecated-api
@@ -108,4 +124,7 @@ class LocalAuth {
   }
 }
 
-module.exports = new LocalAuth()
+const localAuth = new LocalAuth()
+// const verify = localAuth.verify.bind(localAuth)
+
+module.exports = localAuth

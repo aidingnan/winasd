@@ -6,7 +6,9 @@ const debug = require('debug')('ws:bled')
 const Bluetooth = require('../woodstock/winas/bluetooth')
 const DBus = require('../woodstock/lib/dbus')
 const { STRING } = require('../woodstock/lib/dbus-types')
-const  
+
+const sata = require('./sata')
+
 
 /**
  * BLED 负责初始化 dbus对象
@@ -22,7 +24,7 @@ const
  * }
  */
 class BLED extends EventEmitter {
-  constructor (msgHandler) {
+  constructor () {
     super()
 
     /**
@@ -39,18 +41,56 @@ class BLED extends EventEmitter {
     this.ready = false
 
     // set by external module (local auth)
-    this.authorize = null
+    this.auth = null
 
     // updated when device connected / disconnected
-    this.connected = false
+    // this.connected = false
   
     // this.msgHandler = msgHandler
     this.dbus = new DBus()
     this.ble = new Bluetooth(this.boundState, this.sataState, this.localName)
+
+/**
     this.ble.on('LocalAuthWrite', this.handleBleMessage.bind(this, 'LocalAuthWrite')) // LocalAuth
     this.ble.on('NSWrite', this.handleBleMessage.bind(this, 'NSWrite')) // NetSetting
     this.ble.on('BLE_DEVICE_DISCONNECTED', this.handleBleMessage.bind(this, 'deviceDisconnected')) // Device Disconnected
     this.ble.on('BLE_DEVICE_CONNECTED', this.handleBleMessage.bind(this, 'deviceConnected')) // Device Connected
+*/
+
+    this.ble.on('LocalAuthWrite', data => {
+      let obj
+      try {
+        obj = JSON.parse(data)
+      } catch (e) {
+        return
+      }
+
+      this.emit('message', Object.assign(obj, { 
+        charUUID: '60000003-0182-406c-9221-0a6680bd0943' 
+      }))
+    })
+
+    this.ble.on('NSWrite', data => {
+      let msg
+      try {
+        msg = JSON.parse(data)
+      } catch (e) {
+        return  // TODO
+      }
+
+      if (!this.auth || !this.auth(msg.token)) {  // TODO format ???
+        this.send('70000002-0182-406c-9221-0a6680bd0943', {
+          seq: msg.seq
+        })
+      } else {
+        this.emit('message', Object.assign(obj, { 
+          charUUID: '70000003-0182-406c-9221-0a6680bd0943' 
+        }))
+      }
+    })
+
+    this.ble.on('BLE_DEVICE_CONNECTED', addr => this.emit('connected', addr))
+    this.ble.on('BLE_DEVICE_DISCONNECTED', data => this.emit('disconnected', data))
     this.dbus.on('connect', () => {
       this.dbus.attach('/org/bluez/bluetooth', this.ble)
       this.initProperties()
@@ -69,21 +109,18 @@ class BLED extends EventEmitter {
       ]
     }, (err, data) => {
       if (err) return setTimeout(() => this.initProperties(), 1000)
-
       this.info = data[0].eval().reduce((o, [name, kv]) => Object.assign(o, { [name]: kv[1] }), {})
-      debug(this.info)
-
-      this.ready = true
-      this.emit('ready')
+      this.updateAdv()
     })
   }
 
-  setAuthorize (f) {
-    this.authorize = f
+  setAuth (f) {
+    this.auth = f
   }
 
   // internal method
   updateAdv () {
+    console.log('update adv', this.boundState, this.sataState)
     this.ble.updateAdv(this.boundState, this.sataState, this.localName)
   }
 
@@ -99,9 +136,13 @@ class BLED extends EventEmitter {
     this.updateAdv()
   }
 
+/**
   handleBleMessage (type, data) {
+    console.log('type', type)
+    console.log('data', data)
     if (this.msgHandler) this.msgHandler.handle(type, data, this.update.bind(this))
   }
+*/
 
   updateLocalName (localName) {
     if (typeof localName !== 'string' || !localName.length) throw new Error('localname must be string')
@@ -117,7 +158,7 @@ class BLED extends EventEmitter {
     }
   }
 
-  // this is send equivalent
+  // obsolete
   update (type, data) {
     if (this.ble) {
       debug(this.ble[type.slice(0, type.length - 5) + 'Update'], data)
@@ -127,6 +168,15 @@ class BLED extends EventEmitter {
       this.ble[funcName](data)
     }
   }
+
+  // char uuid 
+  // 60000002-0182-406c-9221-0a6680bd0943 auth
+  // 70000002-0182-406c-9221-0a6680bd0943 command
+  send (charUUID, obj) {
+    this.ble.send(charUUID, obj)
+  }
 }
 
-module.exports = new BLED()
+const ble = new BLED() 
+
+module.exports = ble
