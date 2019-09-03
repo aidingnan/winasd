@@ -3,6 +3,7 @@ const uuid = require('uuid')
 const config = require('config')
 const ecc = require('../lib/atecc/atecc')
 const channel = require('./channel')
+const { reqBind, reqUnbind, verify } = require('../lib/lifecycle')
 
 const nexter = () => {
   const q = []
@@ -16,77 +17,13 @@ class State {
   }
 
   setState (NextState, ...args) {
-    this.exited = true
     this.exit()
+    this.exited = true
     let ctx = this.ctx
     let nextState = new NextState(ctx, ...args)
     ctx.state = nextState
     ctx.emit('stateEntering', ctx.state.constructor.name)
     ctx.state.enter()
-  }
-
-  // common method and don't override
-  // this process is atomic, no matter in which state.
-  handleChannelMessage (msg) {
-    if (!msg.info) {
-      return this.setState('Failed', new Error('bad msg info'))
-    }
-
-    const { signature, raw } = msg.info
-    // sig and raw must be same truthy/falsy
-    if (!!signature !== !!raw) {
-      return this.setState('Failed', new Error('bad msg info'))
-    }
-
-    // sig and raw can only be null once (initial state, never bound)
-    // in this case, owner must be null
-    if (signature === null) {
-      if (msg.owner) {
-        return this.setState('Failed', new Error('bad msg info'))
-      } else {
-        // nothing to be verified, unbound
-        return this.setState('Unbound')
-      }
-    }
-
-    verify(ecc, signature, raw, (err, verified, fulfilled) => {
-      if (err) {
-        return this.setState(Failed) // TODO
-      }
-
-      if (!verified) {
-        return this.setState(Failed) // TODO
-      }
-
-      const owner = msg.owner === null
-        ? null
-        : {
-            id: msg.owner,
-            username: msg.username,
-            phone: msg.phone
-          }
-
-      if (!fullfiled) {
-        // do incr (TODO)
-      } else {
-
-      }
-    }
-  }
-
-  // this setOwner check consistency
-  // ctx.setOwner does not check anything
-  setOwner (owner) {
-    if (this.ctx.owner === undefined) {
-      this.ctx.setOwner(owner)
-    } else if (this.ctx.owner === null && owner !== null) {
-      this.ctx.setOwner(owner)
-    } else if (this.ctx.owner !== null && owner === null) {
-      this.ctx.setOwner(owner)
-    } else {
-      let err = new Error('inconsistent owner state')
-      this.setState(Failed, err)
-    }
   }
 
   enter () {
@@ -105,6 +42,10 @@ class State {
     let err = new Error('invalid state')
     err.code = 'EFORBIDDEN'
     process.nextTick(() => callback(err))
+  }
+
+  contextError (err) {
+    this.setState(Failed, err)    
   }
 }
 
@@ -182,28 +123,86 @@ class Owner extends EventEmitter {
     this.tmpDir = opts.tmpDir
     this.tmpFile = path.join(tmpDir, uuid.v4()) 
     this.channel = opts.channel
-    this.channel.on('ChannelConnected', msg => this.state.handleChannelMessage(msg))
+    this.channel.on('ChannelConnected', msg => {
+      this.handleNext(this.handleChannelMessage.bind(this, msg))
+    })
+
     this.ecc = opts.ecc
     this.state = new Idle(this)
     this.state.enter()
-    this.next = nexter()
+
+    this.handleNext = nexter()
+    this.saveNext = nexter()
 
     fs.readFile(this.filePath, (err, data) => {
       if (err) return // including ENOENT
+      if (this.owner !== undefined) return  // useless if owner already set
       try {
         this.cachedOwner = JSON.parse(data) 
+        this.emit('owner', owner)
       } catch (e) {
         return
       }
+    } 
+  }
 
-      if (this.owner === undefined) this.emit('owner', owner)
+  // this function cannot be put into state, including base state
+  // during handling, the state may be changed and 'this' points to an outdated object
+  // using contextError method to interrupt any state
+  // this process should be atomic and has no dependency on state
+  // this process should be synchronized (aka, one after another) to avoid race
+  handleChannelConnected (msg) {
+    let err = new Error('bad owner message from channel')
+    if (!msg.info) return this.state.contextError(err)
+
+    const { signature, raw } = msg.info
+    // sig and raw must be simultaneously truthy or falsy
+    if (!!signature !== !!raw) return this.state.contextError(err)
+
+    // sig and raw can only be null once (brand new, not bound yet)
+    // in this case, owner must be null
+    if (signature === null && msg.owner !== null) return this.state.contextError(err)
+
+    this.verify(signature, raw, (err, verified) => {
+      if (err) return this.state.contextError(err)
+      if (!verified) {
+        let err = new Error('owner not verified')
+        return this.state.contextError(err)
+      }
+
+      let { owner, username, phone } = msg
+      if (!owner) owner = { id: owner, username, phone }
+
+      if (this.owner && this.owner.id !== owner.id) {
+        let err = new Error('owner update not allowed')
+        return this.state.contextError(err)
+      }
+
+      this.owner = owner
+      this.saveNext(this.saveOwner.bind(this))
+      this.emit('owner', owner)
+    })
+  }
+
+  // wrapper to eliminate fulfilled and bypass null sig
+  // TODO there is no need for verify to expose fulfilled
+  // it could adjust counter internally
+  verify (signature, raw, callback) {
+    if (!signature) return process.nextTick(() => callback(null, true))
+    verify(this.ecc, signature, raw, (err, verified, fulfilled) => {
+      if (err) return callback(err)
+      if (!verified) return callback(null, false)
+      if (!fulfilled) {
+        this.ecc.incCounter({}, err => err ? callback(err) : callback(null, true))
+      } else {
+        callback(null, true)
+      }
     })
   }
 
   saveOwner (callback) {
     const { O_CREAT, O_WRONLY, O_TRUNC, O_DIRECT } = consts
     const flag = O_CREAT | O_WRONLY | O_TRUNC | O_DIRECT 
-
     fs.writeFile(this.tmpFile, JSON.stringify(this.owner), flag, err => {
       if (err) return callback(err)
       fs.rename(this.tmpFile, this.file, err => {
@@ -213,11 +212,7 @@ class Owner extends EventEmitter {
     })
   }
 
-  setOwner (owner) {
-    this.emit('owner', owner)
-    this.next(this.saveOwner.bind(this))
-  }   
-
+  // external method, return owner if available, cachedOwner otherwise, or undefined
   getOwner () {
     if (this.owner !== undefined) return this.owner
     if (this.cachedOwner !== undefined) return this.cachedOwner
@@ -231,3 +226,13 @@ class Owner extends EventEmitter {
     this.state.unbind(encrypted, callback)
   }
 }
+
+const homeDir = path.join(config.volume.cloud, config.cloud.domain, config.cloud.id)
+const owner = new Owner({
+  filePath: path.join(homeDir, 'boundUser.json'),
+  tmpDir: config.volume.tmp,
+  channel,
+  ecc
+})
+
+module.exports = owner
