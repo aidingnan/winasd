@@ -12,6 +12,7 @@ const ecc = require('../lib/atecc/atecc')
 const channel = require('./channel')
 const { reqBind, reqUnbind, verify } = require('../lib/lifecycle')
 
+// TODO debug
 const nexter = () => {
   const q = []
   const run = () => q[0](() => (q.shift(), q.length && run()))
@@ -59,6 +60,7 @@ class State {
 
 class Idle extends State {
   bind (encrypted, callback) {
+    debug('binding')
     if (!this.ctx.token) {
       let err = new Error('no token')
       err.code = 'EUNAVAIL'
@@ -128,7 +130,7 @@ class Failed extends State {
   }
 }
 
-class Owner extends EventEmitter {
+class Ownership extends EventEmitter {
   constructor (opts) {
     super()
     this.filePath = opts.filePath
@@ -151,9 +153,9 @@ class Owner extends EventEmitter {
       if (err) return // including ENOENT
       if (this.owner !== undefined) return  // useless if owner already set
       try {
-        this.cachedOwner = JSON.parse(data) 
-        debug('emitting cached owner', this.cachedOwner)
-        this.emit('owner', this.cachedOwner)
+        this.cache = JSON.parse(data) 
+        debug('emitting cached owner', this.cache)
+        this.emit('cache', this.cache)
       } catch (e) {
         return
       }
@@ -245,11 +247,11 @@ class Owner extends EventEmitter {
 }
 
 const homeDir = path.join(config.volume.cloud, config.cloud.domain, config.cloud.id)
-const owner = new Owner({
+
+module.exports = new Ownership({
   filePath: path.join(homeDir, 'boundUser.json'),
   tmpDir: config.volume.tmp,
   channel,
   ecc
 })
 
-module.exports = owner

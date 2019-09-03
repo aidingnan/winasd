@@ -27,11 +27,16 @@ mkdirp.sync(tmpDir)
 mkdirp.sync(homeDir)
 fs.writeFileSync(caCert, caData)
 
-const ownership = require('../src/components/owner')
+const commands = require('../src/components/commands')
 
-ownership.on('StateEntering', state => console.log(state))
+/**
+commands.addAndActive('hello', 'wisnuc123456', (err, data) => {
+  console.log(err || data)
+})
+*/
 
-let token, encrypted
+let encrypted
+let token
 
 request
   .get('https://aws-cn.aidingnan.com/c/v1/user/password/token')
@@ -52,22 +57,15 @@ request
         encrypted = res.body.data.encrypted 
         console.log('encrypted:', encrypted)
 
-
+        setTimeout(() => {
+          commands
+            .addAndActiveAndBound('Xiaomi_123_5G', 'wisnuc123456', encrypted, (err, data) => {
+              console.log(err, data)
+            })  
+        }, 5000) 
       })
       .catch(e => console.log('failed to retrieve encrypted me', e))
   })
   .catch(e => console.log('failed to retrieve cloud token'))
 
-let count = 0
-ownership.once('owner', owner => {
-  if (owner === null) {
-    ownership.bind(encrypted, (err, data) => {
-      console.log('bind result', err, data) 
-    })
-  } else {
-    ownership.unbind(encrypted, (err, data) => {
-      console.log('unbind result', err, data)
-    })
-  }
-})
 
