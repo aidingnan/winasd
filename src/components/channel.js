@@ -326,4 +326,5 @@ Channel.prototype.Connected = Connected
 Channel.prototype.Failed = Failed
 Channel.prototype.Pending = Pending
 
-module.exports = new Channel()
+const channel = new Channel()
+module.exports = channel
