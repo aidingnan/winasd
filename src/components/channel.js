@@ -37,23 +37,27 @@ class Pending extends State {
       .get(`https://${Config.cloud.domain}.aidingnan.com/s/v1/station/${Config.cloud.id}/cert`)
       .then(res => fs.writeFile(deviceCert, res.body.data.certPem, err => {
         if (err) return this.setState('Failed', err)
+        this.ctx.deviceCert = res.body.data.certPem
         this.setState('Connecting')
       }))
       .catch(_ => setTimeout(() => loop(), 3000))
 
-    this.waitNTPAsync()
-      .then(_ => fs.lstat(deviceCert, err =>
-        err ? loop() : this.setState('Connecting')))
-      .catch(e => this.setState('Failed', Object.assign(e, { code: 'ENTP' })))
+    this.waitNTP(() => {
+      fs.lstat(deviceCert, err => err ? loop()
+        // eslint-disable-next-line no-return-assign
+        : fs.readFile(deviceCert, (err, data) => err ? this.setState('Failed', err)
+          : (this.ctx.deviceCert = data.toString(), this.setState('Connecting'))))
+    })
   }
 
-  async waitNTPAsync () {
-    const timeout = new Date().getTime() + 10 * 1000
-    while (true) {
-      if (timeout < new Date().getTime()) throw new Error('ntp sync timeout')
-      if ((await child.execAsync(`timedatectl| grep sync | awk '{ print $4 }'`)).toString().trim() === 'yes') { return }
-      await Promise.delay(1000)
+  waitNTP (callback) {
+    const loop = () => {
+      child.exec(`timedatectl| grep sync | awk '{ print $4 }'`, (err, stdout, stderr) => {
+        if (err || stderr || stdout.toString().trim() !== 'yes') return setTimeout(() => loop(), 3000)
+        return callback(null, null)
+      })
     }
+    loop()
   }
 }
 
@@ -98,8 +102,7 @@ class Connecting extends Base {
 
     conn = new Client({
       clientCertificates: [
-        Buffer.from(fs.readFileSync(deviceCert)
-          .toString()
+        Buffer.from(this.ctx.deviceCert
           .split('\n')
           .filter(x => !!x && !x.startsWith('--'))
           .join(''), 'base64')
