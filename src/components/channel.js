@@ -155,7 +155,7 @@ class Connected extends Base {
     try {
       clearTimeout(this.ctx.delayCleanTimer)
       // confirm first
-      child.exec('cowroot-confirm', () => {})
+      // child.exec('cowroot-confirm', () => {})
       this.ctx.token = token
       this.counter = 0
       this.refreshTokenTime = 1000 * 60 * 60 * 2
