@@ -1,6 +1,7 @@
+const Promise = require('bluebird')
 const fs = require('fs')
 const path = require('path')
-const child = require('child_process')
+const child = Promise.promisifyAll(require('child_process'))
 const Config = require('config')
 const State = require('../lib/state')
 const { NetworkAddr, deviceName, SoftwareVersion } = require('../lib/device')
@@ -8,6 +9,8 @@ const debug = require('debug')('ws:channel')
 const request = require('request')
 const Client = require('../lib/mqttClient')
 const AWSCA = require('../lib/awsCA')
+
+const ecc = require('../lib/atecc/atecc')
 
 const IOTConf = Config.get('iot')
 const certFolder = path.join(Config.volume.cloud, Config.cloud.domain, Config.cloud.id)
@@ -112,7 +115,8 @@ class Connecting extends Base {
       host: IOTConf.endpoint,
       keepalive: 5,
       clientPrivateKey: (data, callback) =>
-        this.ctx.ctx.ecc.sign({ data, der: true }, callback),
+        // this.ctx.ctx.ecc.sign({ data, der: true }, callback),
+        ecc.sign({ data, der: true }, callback),
       clientCertificateVerifier: {
         algorithm: '',
         sign: ''
@@ -148,6 +152,7 @@ class Connecting extends Base {
 
 class Connected extends Base {
   enter (connection, token, device) {
+try {
     clearTimeout(this.ctx.delayCleanTimer)
     // confirm first
     child.exec('cowroot-confirm', () => {})
@@ -171,7 +176,12 @@ class Connected extends Base {
       this.refreshToken() // refresh token
     }, this.refreshTokenTime)
 
+    debug('ChannelConnected', device)
+
     this.ctx.emit('ChannelConnected', device)
+} catch (e) {
+  console.log(e)
+}
   }
 
   // start refresh token
@@ -221,6 +231,7 @@ class Connected extends Base {
 class Failed extends Base {
   enter (error) {
     // console.log('Failed: ', error)
+    debug('Failed', error)
     this.error = error
     this.timer = setTimeout(() => this.setState('Connecting'), 1000 * 10)
   }
@@ -249,11 +260,12 @@ class Failed extends Base {
 class Channel extends require('events') {
   constructor () {
     super()
+    this._token = ''
 
     Object.defineProperty(this, 'token', {
       get: () => this._token,
       set: x => {
-        this.token = x
+        this._token = x
         this.emit('token', x)
       }
     })
