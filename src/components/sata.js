@@ -42,7 +42,7 @@ class Sata extends EventEmitter {
   // internal method
   setStatus (status) {
     this.status = status
-    process.nextTick(() => this.emit('statusUpdate', status))
+    process.nextTick(() => this.emit('status', status))
   }
 
   // internal method
