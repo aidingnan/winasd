@@ -1,1 +1,5 @@
-module.exports = null
+module.exports = {
+  run: () => {},
+  runGroup: () => {},
+  colorGroup: () => {}
+}

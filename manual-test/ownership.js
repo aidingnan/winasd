@@ -27,7 +27,7 @@ mkdirp.sync(tmpDir)
 mkdirp.sync(homeDir)
 fs.writeFileSync(caCert, caData)
 
-const ownership = require('../src/components/owner')
+const ownership = require('../src/components/ownership')
 
 ownership.on('StateEntering', state => console.log(state))
 

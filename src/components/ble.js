@@ -1,7 +1,7 @@
 const EventEmitter = require('events')
 const os = require('os')
 
-const debug = require('debug')('ws:bled')
+const debug = require('debug')('ws:ble')
 
 const Bluetooth = require('../woodstock/winas/bluetooth')
 const DBus = require('../woodstock/lib/dbus')
@@ -11,7 +11,7 @@ const sata = require('./sata')
 
 
 /**
- * BLED 负责初始化 dbus对象
+ * BLE 负责初始化 dbus对象
  * 由于ble和networkmanager 都使用debus提供服务，使用服务
  * 所以该模块负责初始化ble中的各种service以及NetworkManager对象
  * definition bluetooth packet
@@ -23,7 +23,7 @@ const sata = require('./sata')
  *    body:{}
  * }
  */
-class BLED extends EventEmitter {
+class BLE extends EventEmitter {
   constructor () {
     super()
 
@@ -40,8 +40,8 @@ class BLED extends EventEmitter {
     this.info = null
     this.ready = false
 
-    // set by external module (local auth)
-    this.auth = null
+    // set by external module (ble-app, supposedly)
+    this.verify = null
 
     // updated when device connected / disconnected
     // this.connected = false
@@ -78,12 +78,22 @@ class BLED extends EventEmitter {
         return  // TODO
       }
 
-      if (!this.auth || !this.auth(msg.token)) {  // TODO format ???
+      if (!this.verify) {
+        let err = new Error('verify not found')
+        err.code = 'EUNAVAIL'
         this.send('70000002-0182-406c-9221-0a6680bd0943', {
-          seq: msg.seq
+          seq: msg.seq,
+          error: err 
+        })
+      } else if (typeof msg.token !== 'string' || !msg.token ||!this.verify(msg.token)) {
+        let err = new Error('access denied')
+        err.code = 'EPERM'
+        this.send('70000002-0182-406c-9221-0a6680bd0943', {
+          seq: msg.seq,
+          error: err 
         })
       } else {
-        this.emit('message', Object.assign(obj, { 
+        this.emit('message', Object.assign(msg, { 
           charUUID: '70000003-0182-406c-9221-0a6680bd0943' 
         }))
       }
@@ -114,8 +124,8 @@ class BLED extends EventEmitter {
     })
   }
 
-  setAuth (f) {
-    this.auth = f
+  useAuth (f) {
+    this.verify = f
   }
 
   // internal method
@@ -177,6 +187,6 @@ class BLED extends EventEmitter {
   }
 }
 
-const ble = new BLED() 
+const ble = new BLE() 
 
 module.exports = ble

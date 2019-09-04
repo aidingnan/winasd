@@ -1,12 +1,10 @@
 const child = require('child_process')
+const os = require('os')
 
 const strip = require('strip-ansi')
 
-// const bled = require('./bled')
-// const localAuth = require('./localAuth')
-// const led = require('./led')
-// const channel = require('./channel')
-const ownership = require('./owner')
+const config = require('config')
+const ownership = require('./ownership')
 const sata = require('./sata')
 
 // this is a higher order function
@@ -28,6 +26,15 @@ const racer = () => {
   } 
 }
 
+const ip = () => {
+  let wlan0 = os.networkInterfaces().wlan0
+  if (wlan0) {
+    ipv4 = wlan0.find(o => o.family === 'IPv4')
+    if (ipv4) return ipv4.address
+  } 
+  return '255.255.255.255' 
+}
+
 // TODO error code
 // TODO nmcli list before connect, return ENOENT
 const addAndActive = (ssid, password, callback) => 
@@ -40,37 +47,52 @@ const addAndActive = (ssid, password, callback) =>
     }
   })
 
-// TODO change callback to send progress
+// the callback can be triggered multiple times
+// send obj as progress
+// until an Error or null indicating an end
 const addAndActiveAndBound = (ssid, password, encrypted, callback) =>
   addAndActive(ssid, password, err => {
-    if (err) return callback(err)
-
-    let r = racer()
-    setTimeout(r(() => {
-      let err = new Error('cloud not connected in 60 seconds')
-      err.code = 'ETIMEOUT'
+    if (err) {
+      err.reason = err.code
+      err.code = 'EWIFI'
       callback(err)
-    }), 60 * 1000)
-    ownership.on('owner', r(owner => {
-      if (owner) {
-        let err = new Error('owner exists')
-        err.code = 'EEXIST'
+    } else {
+      // progress
+      callback({ success: 'WIFI' })
+      let r = racer()
+      setTimeout(r(() => {
+        let err = new Error('cloud not connected in 60 seconds')
+        err.code = 'ETIMEOUT'
         callback(err)
-      } else {
-        ownership.bind(encrypted, err => {
+      }), 60 * 1000)
+      ownership.on('owner', r(owner => {
+        if (owner) {
+          let err = new Error('owner exists')
+          err.code = 'EEXIST'
           callback(err)
-        })
-      }
-    }))
+        } else {
+          callback({ success: 'CHANNEL' })
+          ownership.bind(encrypted, err => {
+            if (err) {
+              err.reason = err.code
+              err.code = 'EBOUND'
+              callback(err)
+            } else {
+              callback({
+                success: 'BOUND',
+                data: {
+                  sn: config.cloud.id,
+                  addr: ip() 
+                }
+              }) 
+            }
+          })
+        }
+      }))
+    }
   })
-
-const cleanVolume = () => {
-  sata.format(err => {
-  })
-} 
 
 module.exports = {
   addAndActive,
   addAndActiveAndBound,
-  cleanVolume 
 }
