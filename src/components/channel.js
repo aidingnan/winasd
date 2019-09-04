@@ -152,36 +152,36 @@ class Connecting extends Base {
 
 class Connected extends Base {
   enter (connection, token, device) {
-try {
-    clearTimeout(this.ctx.delayCleanTimer)
-    // confirm first
-    child.exec('cowroot-confirm', () => {})
-    this.ctx.token = token
-    this.counter = 0
-    this.refreshTokenTime = 1000 * 60 * 60 * 2
-    this.connection = connection
-    this.connection.on('message', (...args) => {
-      this.revToken(...args) // hijack refresh token topic to reset waitTimer
-      this.ctx.handleIotMsg.bind(this.ctx)(...args)
-    })
-    this.connection.on('close', () => this.setState('Failed', new Error('close')))
-    this.connection.on('error', err => this.setState('Failed', err))
-    this.connection.on('offline', () => this.setState('Failed', new Error('offline')))
-    this.connection.subscribe(`cloud/${deviceSN}/pipe`)
-    this.connection.subscribe(`cloud/${deviceSN}/users`)
-    this.connection.subscribe(`cloud/${deviceSN}/token`)
-    this.connection.subscribe(`cloud/${deviceSN}/checkout`)
-    this.connection.subscribe(`cloud/${deviceSN}/download`)
-    this.timer = setTimeout(() => {
-      this.refreshToken() // refresh token
-    }, this.refreshTokenTime)
+    try {
+      clearTimeout(this.ctx.delayCleanTimer)
+      // confirm first
+      child.exec('cowroot-confirm', () => {})
+      this.ctx.token = token
+      this.counter = 0
+      this.refreshTokenTime = 1000 * 60 * 60 * 2
+      this.connection = connection
+      this.connection.on('message', (...args) => {
+        this.revToken(...args) // hijack refresh token topic to reset waitTimer
+        this.ctx.handleIotMsg.bind(this.ctx)(...args)
+      })
+      this.connection.on('close', () => this.setState('Failed', new Error('close')))
+      this.connection.on('error', err => this.setState('Failed', err))
+      this.connection.on('offline', () => this.setState('Failed', new Error('offline')))
+      this.connection.subscribe(`cloud/${deviceSN}/pipe`)
+      this.connection.subscribe(`cloud/${deviceSN}/users`)
+      this.connection.subscribe(`cloud/${deviceSN}/token`)
+      this.connection.subscribe(`cloud/${deviceSN}/checkout`)
+      this.connection.subscribe(`cloud/${deviceSN}/download`)
+      this.timer = setTimeout(() => {
+        this.refreshToken() // refresh token
+      }, this.refreshTokenTime)
 
-    debug('ChannelConnected', device)
+      debug('ChannelConnected', device)
 
-    this.ctx.emit('ChannelConnected', device)
-} catch (e) {
-  console.log(e)
-}
+      this.ctx.emit('ChannelConnected', device)
+    } catch (e) {
+      console.log(e)
+    }
   }
 
   // start refresh token
