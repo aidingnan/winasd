@@ -233,7 +233,7 @@ class Failed extends Base {
     // console.log('Failed: ', error)
     debug('Failed', error)
     this.error = error
-    this.timer = setTimeout(() => this.setState('Connecting'), 1000 * 10)
+    this.timer = setTimeout(() => this.setState(this.ctx.deviceCert ? 'Connecting' : 'Pending'), 1000 * 10)
   }
 
   exit () {
@@ -241,7 +241,7 @@ class Failed extends Base {
   }
 
   reconnect () {
-    this.setState('Pending')
+    this.setState(this.ctx.deviceCert ? 'Connecting' : 'Pending')
   }
 }
 
