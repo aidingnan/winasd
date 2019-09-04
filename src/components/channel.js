@@ -40,23 +40,27 @@ class Pending extends State {
       .get(`https://${Config.cloud.domain}.aidingnan.com/s/v1/station/${Config.cloud.id}/cert`)
       .then(res => fs.writeFile(deviceCert, res.body.data.certPem, err => {
         if (err) return this.setState('Failed', err)
+        this.ctx.deviceCert = res.body.data.certPem
         this.setState('Connecting')
       }))
       .catch(_ => setTimeout(() => loop(), 3000))
 
-    this.waitNTPAsync()
-      .then(_ => fs.lstat(deviceCert, err =>
-        err ? loop() : this.setState('Connecting')))
-      .catch(e => this.setState('Failed', Object.assign(e, { code: 'ENTP' })))
+    this.waitNTP(() => {
+      fs.lstat(deviceCert, err => err ? loop()
+        // eslint-disable-next-line no-return-assign
+        : fs.readFile(deviceCert, (err, data) => err ? this.setState('Failed', err)
+          : (this.ctx.deviceCert = data.toString(), this.setState('Connecting'))))
+    })
   }
 
-  async waitNTPAsync () {
-    const timeout = new Date().getTime() + 10 * 1000
-    while (true) {
-      if (timeout < new Date().getTime()) throw new Error('ntp sync timeout')
-      if ((await child.execAsync(`timedatectl| grep sync | awk '{ print $4 }'`)).toString().trim() === 'yes') { return }
-      await Promise.delay(1000)
+  waitNTP (callback) {
+    const loop = () => {
+      child.exec(`timedatectl| grep sync | awk '{ print $4 }'`, (err, stdout, stderr) => {
+        if (err || stderr || stdout.toString().trim() !== 'yes') return setTimeout(() => loop(), 3000)
+        return callback(null, null)
+      })
     }
+    loop()
   }
 }
 
@@ -101,8 +105,7 @@ class Connecting extends Base {
 
     conn = new Client({
       clientCertificates: [
-        Buffer.from(fs.readFileSync(deviceCert)
-          .toString()
+        Buffer.from(this.ctx.deviceCert
           .split('\n')
           .filter(x => !!x && !x.startsWith('--'))
           .join(''), 'base64')
@@ -149,36 +152,36 @@ class Connecting extends Base {
 
 class Connected extends Base {
   enter (connection, token, device) {
-try {
-    clearTimeout(this.ctx.delayCleanTimer)
-    // confirm first
-    child.exec('cowroot-confirm', () => {})
-    this.ctx.token = token
-    this.counter = 0
-    this.refreshTokenTime = 1000 * 60 * 60 * 2
-    this.connection = connection
-    this.connection.on('message', (...args) => {
-      this.revToken(...args) // hijack refresh token topic to reset waitTimer
-      this.ctx.handleIotMsg.bind(this.ctx)(...args)
-    })
-    this.connection.on('close', () => this.setState('Failed', new Error('close')))
-    this.connection.on('error', err => this.setState('Failed', err))
-    this.connection.on('offline', () => this.setState('Failed', new Error('offline')))
-    this.connection.subscribe(`cloud/${deviceSN}/pipe`)
-    this.connection.subscribe(`cloud/${deviceSN}/users`)
-    this.connection.subscribe(`cloud/${deviceSN}/token`)
-    this.connection.subscribe(`cloud/${deviceSN}/checkout`)
-    this.connection.subscribe(`cloud/${deviceSN}/download`)
-    this.timer = setTimeout(() => {
-      this.refreshToken() // refresh token
-    }, this.refreshTokenTime)
+    try {
+      clearTimeout(this.ctx.delayCleanTimer)
+      // confirm first
+      child.exec('cowroot-confirm', () => {})
+      this.ctx.token = token
+      this.counter = 0
+      this.refreshTokenTime = 1000 * 60 * 60 * 2
+      this.connection = connection
+      this.connection.on('message', (...args) => {
+        this.revToken(...args) // hijack refresh token topic to reset waitTimer
+        this.ctx.handleIotMsg.bind(this.ctx)(...args)
+      })
+      this.connection.on('close', () => this.setState('Failed', new Error('close')))
+      this.connection.on('error', err => this.setState('Failed', err))
+      this.connection.on('offline', () => this.setState('Failed', new Error('offline')))
+      this.connection.subscribe(`cloud/${deviceSN}/pipe`)
+      this.connection.subscribe(`cloud/${deviceSN}/users`)
+      this.connection.subscribe(`cloud/${deviceSN}/token`)
+      this.connection.subscribe(`cloud/${deviceSN}/checkout`)
+      this.connection.subscribe(`cloud/${deviceSN}/download`)
+      this.timer = setTimeout(() => {
+        this.refreshToken() // refresh token
+      }, this.refreshTokenTime)
 
-    debug('ChannelConnected', device)
+      debug('ChannelConnected', device)
 
-    this.ctx.emit('ChannelConnected', device)
-} catch (e) {
-  console.log(e)
-}
+      this.ctx.emit('ChannelConnected', device)
+    } catch (e) {
+      console.log(e)
+    }
   }
 
   // start refresh token
