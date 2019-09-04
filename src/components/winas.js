@@ -216,6 +216,7 @@ class Winas extends EventEmitter {
     // this.winasDir = ctx.config.storage.dirs.winasDir
     this.winasDir = Config.winas.dir
 
+    ownership.on('cache', this.handleOwnerMessage.bind(this))
     ownership.on('owner', this.handleOwnerMessage.bind(this))
     channel.on('token', this.handleTokenMessage.bind(this))
     channel.on('pipe', this.handlePipeMessage.bind(this))
