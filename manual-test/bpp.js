@@ -27,5 +27,5 @@ mkdirp.sync(tmpDir)
 mkdirp.sync(homeDir)
 fs.writeFileSync(caCert, caData)
 
-const bpp = require('../src/components/ble-app')
+const bpp = require('../src/ble-app')
 

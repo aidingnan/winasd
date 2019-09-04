@@ -1,10 +1,10 @@
 const debug = require('debug')('ws:bpp')
 
-const sata = require('./sata')
-const ownership = require('./ownership')
-const ble = require('./ble')
-const auth = require('./local-auth')
-const { addAndActive, addAndActiveAndBound } = require('./actions')
+const sata = require('./components/sata')
+const ownership = require('./components/ownership')
+const ble = require('./components/ble')
+const localAuth = require('./components/local-auth')
+const { addAndActive, addAndActiveAndBound } = require('./components/actions')
 
 /**
 This is a mediator pattern.
@@ -50,11 +50,11 @@ ownership.on('owner', owner => {
   }
 })
 
-ble.useAuth(auth.verify.bind(auth))
+ble.useAuth(localAuth.verify.bind(localAuth))
 
 ble.on('disconnected', () => {
   debug('ble disconnected')
-  auth.stop()
+  localAuth.stop()
 })
 
 // req: { action: 'req', seq: 1 , body: {} }
@@ -63,7 +63,7 @@ ble.on('message', msg => {
   if (msg.charUUID === '60000003-0182-406c-9221-0a6680bd0943') {
     switch (msg.action) {
       case 'req': 
-        auth.request((err, data) => {
+        localAuth.request((err, data) => {
           let packet = { seq: msg.seq }
           if (err) {
             packet.error = err
@@ -74,7 +74,7 @@ ble.on('message', msg => {
         }) 
         break
       case 'auth':
-        auth.auth(msg.body, (err, data) => {
+        localAuth.auth(msg.body, (err, data) => {
           let packet = { seq: msg.seq }
           if (err) {
             packet.error = err
