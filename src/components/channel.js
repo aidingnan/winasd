@@ -6,7 +6,7 @@ const Config = require('config')
 const State = require('../lib/state')
 const { NetworkAddr, deviceName, SoftwareVersion } = require('../lib/device')
 const debug = require('debug')('ws:channel')
-const request = require('request')
+const request = require('superagent')
 const Client = require('../lib/mqttClient')
 const AWSCA = require('../lib/awsCA')
 

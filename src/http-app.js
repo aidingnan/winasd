@@ -1,15 +1,11 @@
 const app = require('express')()
 const logger = require('morgan')
 const bodyParser = require('body-parser')
-const AppService = require('./services')
+
 const resMiddware = require('./middleware/res')
 
-const appService = new AppService()
-
-/**
-pretty json for easier debug
-*/
-app.set('json spaces', 2)
+const info = require('./routes/info')
+const actions = require('./routes/actions')
 
 /**
 set app.nolog to true skip all log
@@ -23,8 +19,10 @@ app.use(bodyParser.urlencoded({ extended: false }))
 app.use(resMiddware)
 
 app.get('/', (req, res) => res.status(200).send('Welcome to winasd'))
-app.get('/info', (req, res, next) => res.success(appService.view()))
-app.use('/winasd', require('./routes/winasd')(appService))
+
+// app.get('/info', (req, res, next) => res.success(appService.view()))
+app.use('/info', info) 
+app.use('/winasd', actions)
 
 // 404 handler
 app.use((req, res, next) => next(Object.assign(new Error('404 Not Found'), { status: 404 })))
