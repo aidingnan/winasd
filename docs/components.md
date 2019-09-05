@@ -201,11 +201,11 @@ format方法仅在0x03, 0x04和0x80状态下可用，如果是0x80，format会�
 
 目前winas服务和sata format的互斥代码层面没有表述，只有服务实现的时候先关闭winas（通过迁移owner到unbound，而不是直接操作winas）。
 
-## Owner
+## Ownership
 
-Owner模块的责任是向其他模块提供owner信息，该需求可以通过emit `owner`事件实现。
+Ownership模块的责任是向其他模块提供owner信息，该需求可以通过emit `owner`事件实现。
 
-Owner模块的侦听源有两个，一个是cached owner，从文件系统读取，另一个是channel，channel提供`device`消息；
+Ownership模块的源有两个，一个是cached owner，从文件系统读取，另一个是channel，channel提供`device`消息；
 
 原有代码根据owner的状态建立了状态机，这个做法值得商榷；一般而言状态机很少是外部资源直接决定的，比如parser是根据缓冲状态决定的；在这个例子里，来自channel的信息对Owner模块的状态有绝对的决定权（如果有效的话）。
 
