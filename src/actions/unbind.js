@@ -2,9 +2,14 @@ const path = require('path')
 const fs = require('fs')
 const child = require('child_process')
 
+const uuid = require('uuid')
+
 const blkid = require('../lib/blkid')
+const mksubvolp = require('../lib/mksubvolp')
+const rimrafSubvol = require('../lib/rimraf-subvol')
 const ownership = require('../components/ownership')
 const winas = require('../components/winas')
+
 
 //  request cloud unbind first, if succeeds
 module.exports = (encrypted, clean, callback) => {
@@ -27,6 +32,7 @@ module.exports = (encrypted, clean, callback) => {
         console.log('unbinding polling owner and winas state', ownership.owner, winas.getState())
         if (ownership.owner === null && winas.getState() === 'Stopped') {
           clearTimeout(timeout) 
+          clearInterval(polling)
 
           /** 
           {
@@ -48,31 +54,59 @@ module.exports = (encrypted, clean, callback) => {
             if (err) {
               callback(err)
             } else {
+              let mp
               try {
-                const mp = JSON.parse(stdout.toString())
+                mp = JSON.parse(stdout.toString())
                   .blockdevices
                   .find(blk => blk.name === 'sda' && blk.type === 'disk' && blk.ro === false)
                   .mountpoint
                   .slice()
-
-                const winasDir = path.join(mp, 'winas')
-                const tmpVol = path.join(mp, '.winas-delete-409335d8-cfae-11e9-a1f6-afe5dfd44f79')
-                const tmpWinasDir = path.join(tmpVol, 'winas')
-                child.exec(`btrfs subvolume create ${tmpVol}`, err => {
-                  if (err) return callback(err)
-                  fs.rename(winasDir, tmpWinasDir, err => {
-                    if (err) return callback(err)
-                    console.time('unbind-delete-tmpvol')
-                    child.exec(`btrfs subvolume delete --commit-after ${tmpVol}`, err => {
-                      console.timeEnd('unbind-delete-tmpvol')
-                      if (err) return callback(err) 
-                      callback(null, { clean: 'succeeded' })
-                    }) 
-                  })
-                })
               } catch (e) {
                 return callback(e)
               }
+
+              console.log('mountpoint', mp)
+
+              const name = '.winas-delete-409335d8-cfae-11e9-a1f6-afe5dfd44f79'
+              const winasDir = path.join(mp, 'winas')
+              const tmpDir = path.join(mp, name)
+
+              fs.lstat(winasDir, (err, stats) => {
+                if (err && err.code === 'ENOENT') {
+                  callback(null)
+                } else if (err) {
+                  callback(err)
+                } else if (!stats.isDirectory()) {
+                  let err = new Error('not a directory')
+                  err.code = 'ENOTDIR'
+                  callback(err)
+                } else if (stats.ino === 256 || stats.ino) {
+                  rimrafSubvol(
+                }
+
+                  child.exec(`btrfs subvolume show ${tmpDir}`, err => {
+                    if (err) {
+                      rimraf(tmpDir, err => {
+                      })
+                    } else {
+                      rim
+                    }
+                  })
+
+                  mksubvolp(tmpVol, err => {
+                    if (err) return callback(err)
+                    fs.rename(winasDir, tmpDir, err => {
+                      if (err) return callback(err)
+                      rimrafSubvol(tmpVol, err => {
+                        if (err) return callback(err)
+                        callback(null)
+                      })
+                    })
+                  })
+                }
+              })
+
+
             }
           })
         }
