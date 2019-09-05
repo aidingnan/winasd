@@ -3,6 +3,7 @@ const fs = require('fs')
 const child = require('child_process')
 
 const validator = require('validator')
+const uuid = require('uuid')
 const rimraf = require('rimraf')
 
 const sata = require('./sata')
@@ -23,27 +24,25 @@ sata.once('mounted', mp => {
     !err && entries.filter(match).forEach(name => recycle(name)))
 })
 
-const recycle = (name, callback = () => {}) => {
+const recycle = (source, callback = () => {}) => {
   if (!mountpoint) {
     const err = new Error('not mounted')
-    err.code = 'EFORBIDDEN'
+    err.code = 'EUNAVAIL'
     return process.nextTick(() => callback(err))
   }
 
-  if (!match(name)) {
-    const err = new Error('invalid name')
-    err.code = 'EINVAL'
-    return process.nextTick(() => callback(err))
-  }
-
+  const name = prefix + uuid.v4()
   const target = path.join(mountpoint, name)
-  fs.lstat(target, (err, stats) => {
+  fs.rename(source, target, err => {
     if (err) return callback(err)
-    if (stats.ino === 256 || stats.ino === 2) {
-      child.exec(`btrfs subvolume delete --commit-each ${target}`, err => callback(err))
-    } else {
-      rimraf(target, err => callback(err))
-    }
+    fs.lstat(target, (err, stats) => {
+      if (err) return callback(err)
+      if (stats.ino === 256 || stats.ino === 2) {
+        child.exec(`btrfs subvolume delete --commit-each ${target}`, err => callback(err))
+      } else {
+        rimraf(target, err => callback(err))
+      }
+    })
   })
 }
 

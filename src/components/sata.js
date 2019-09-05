@@ -1,11 +1,14 @@
 const path = require('path')
 const fs = require('fs')
+const child = require('child_process')
 const EventEmitter = require('events')
 
-const uuid = require('uuid')
 const mkdirp = require('mkdirp')
+const rimraf = require('rimraf')
 
-const btrfsStat = require('../lib/btrfsStat')
+const lsblk = require('../lib/lsblk')
+
+const volumeDir = '/run/winas/volumes/'
 
 /**
 Sata object provides:
@@ -17,105 +20,102 @@ class Sata extends EventEmitter {
   constructor () {
     super()
     this.status = 0x00
-    this.mp = path.join('/run', uuid.v4())
-   
-    this.busy = true 
-    mkdirp(this.mp, err => {
-      if (err) {
-        this.busy = false
-        this.setStatus(0xff)
+    this.busy = true
+    this.checkStatus()
+  }
+
+  /** {
+    "name": "sda",
+    "fstype": "btrfs",
+    "label": null,
+    "uuid": "e31829d6-a379-4878-8225-787c1ea55b24",
+    "fsavail": "217.6G",
+    "fsuse%": "2%",
+    "mountpoint": "/run/winas/volumes/e31829d6-a379-4878-8225-787c1ea55b24"
+  } */
+  checkStatus () {
+    lsblk((err, blks) => {
+      if (err) return this.setStatus(0xff)
+
+      const sda = blks.find(blk => blk.name === 'sda')
+      if (!sda) return this.setStatus(0x02)
+
+      const { fstype, uuid } = sda
+      if (fstype !== 'btrfs') return this.setStatus(0x03)
+
+      const mountpoint = path.join(volumeDir, uuid)
+      if (sda.mountpoint) {
+        if (sda.mountpoint !== mountpoint) {
+          this.setStatus(0x05)
+        } else {
+          this.mountpoint = mountpoint
+          this.setStatus(0x80)
+        }
       } else {
-        this.checkSdaAsync()
-          .then(status => { 
-            this.busy = false 
-            this.setStatus(status)
+        mkdirp(volumeDir, err => {
+          if (err) return this.setStatus(0xff)
+          child.exec(`mount -t btrfs /dev/sda' ${mountpoint}`, err => {
+            if (err) {
+              this.setStatus(0x04)
+            } else {
+              this.mountpoint = mountpoint
+              this.setStatus(0x80)
+            }
           })
-          .catch(e => { 
-            this.busy = false 
-            this.setStatus(0xff)
-          })
+        })
       }
     })
   }
 
   // internal method
   setStatus (status) {
+    this.busy = false
     this.status = status
     process.nextTick(() => this.emit('status', status))
+    if (this.status === 0x80) this.swapon()
   }
 
-  // internal method
-  async checkSdaAsync () {
-    return new Promise((resolve, reject) => {
-      btrfsStat(this.mp, (err, status) => {
-        // This is weird TODO
-        if (status) {
-          resolve(status)
+  swapon (callback = () => {}) {
+    const swapfile = path.join(this.mountpoint, 'swapfile')
+    const tmpswapfile = path.join(this.mountpoint, 'tmpswapfile')
+    child.exec('cat /proc/swaps', (err, stdout) => {
+      if (err) return
+      if (stdout.toString().indexOf(swapfile) !== -1) return
+      fs.lstat(swapfile, err => {
+        if (!err) { // swapfile ready create
+          child.exec(`swapon ${swapfile}`, () => {})
         } else {
-          reject(err)
+          // create swapfile
+          // btrfs swapfile need NoCOW
+          // https://superuser.com/questions/1067150/how-to-create-swapfile-on-ssd-disk-with-btrfs/1411462#1411462
+          rimraf(tmpswapfile, () =>
+            child.exec(`set -e;
+              touch ${tmpswapfile};
+              chattr +C ${tmpswapfile};
+              dd if=/dev/zero of=${tmpswapfile} bs=1M count=4096 status=none;
+              chmod 600 ${tmpswapfile};
+              mkswap -f ${tmpswapfile};
+              mv  ${tmpswapfile} ${swapfile};
+              swapon ${swapfile}
+              `, () => {}))
         }
       })
-    }) 
+    })
   }
 
-  async formatAsync () {
-    if (![0x03, 0x04, 0x80].includes(this.status)) {
-      let err = new Error(`operation forbidden for status ${this.status}`) 
-      err.code = 'EFORBIDDEN'
-      throw err
-    }
-
-    if (this.status === 0x80) {
-      const stdout = await childExecAsync('cat /proc/mounts')
-      const mnts = stdout.toString()
-        .split('\n')
-        .map(l => l.trim())
-        .filter(l => l.length)
-        .map(l => {
-          // <file system> <mount point>   <type>  <options>       <dump>  <pass>
-          let flds = l.split(' ').map(fld => fld.trim())
-          return {
-            fs: flds[0],
-            mp: flds[1],
-            type: flds[2],
-            opts: flds[3],
-            dump: flds[4],
-            pass: flds[5]
-          }
-        })
-
-      if (mnts.find(m => m.fs = '/dev/sda' && m.type === 'btrfs')) {
-        await childExecAsync('umount -f /dev/sda')  
-      }
-    }
-
-    await childExecAsync('mkfs.btrfs -f /dev/sda')
-    await childExecAsync('partprobe')
-  }
-
+  // this is the only external method
   format (callback) {
     if (this.busy) {
-      let err = new Error('busy')
+      const err = new Error('busy')
       err.code = 'EBUSY'
       process.nextTick(() => callback(err))
     } else {
       this.busy = true
-      this.formatAsync()
-        .then(() => callback(null))
-        .catch(e => callback(e))
-        .then(() => {
-          this.checkSdaAsync()
-            .then(status => {
-              this.busy = false
-              this.setStatus(status)
-            })
-            .catch(e => {
-              this.busy = false
-              this.setStatus(0xff)
-            })
-        })
+      child.exec('mkfs.btrfs -f /dev/sda', err => err
+        ? this.checkStatus()
+        : child.exec('partprobe', () => this.checkStatus()))
     }
-  } 
+  }
 }
 
 module.exports = new Sata()
