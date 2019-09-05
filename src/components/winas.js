@@ -1,7 +1,6 @@
 const channel = require('./channel')
 const ownership = require('./ownership')
 
-const Promise = require('bluebird')
 const path = require('path')
 const fs = require('fs')
 const child = require('child_process')

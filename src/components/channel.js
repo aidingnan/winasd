@@ -155,7 +155,7 @@ class Connected extends Base {
     try {
       clearTimeout(this.ctx.delayCleanTimer)
       // confirm first
-      child.exec('cowroot-confirm', () => {})
+      // child.exec('cowroot-confirm', () => {})
       this.ctx.token = token
       this.counter = 0
       this.refreshTokenTime = 1000 * 60 * 60 * 2
@@ -233,7 +233,7 @@ class Failed extends Base {
     // console.log('Failed: ', error)
     debug('Failed', error)
     this.error = error
-    this.timer = setTimeout(() => this.setState('Connecting'), 1000 * 10)
+    this.timer = setTimeout(() => this.setState(this.ctx.deviceCert ? 'Connecting' : 'Pending'), 1000 * 10)
   }
 
   exit () {
@@ -241,7 +241,7 @@ class Failed extends Base {
   }
 
   reconnect () {
-    this.setState('Pending')
+    this.setState(this.ctx.deviceCert ? 'Connecting' : 'Pending')
   }
 }
 
