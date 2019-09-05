@@ -14,7 +14,7 @@ const volumeDir = '/run/winas/volumes/'
 Sata object provides:
 1. status 0x00, 0x02..., 0x80, 0xFF
 2. status event for disk status
-3. mounted event for disk mount and swap on
+3. mounted event as 0x80 alias, convenient for one-time listener
 */
 class Sata extends EventEmitter {
   constructor () {
@@ -72,10 +72,13 @@ class Sata extends EventEmitter {
     this.busy = false
     this.status = status
     process.nextTick(() => this.emit('status', status))
-    if (this.status === 0x80) this.swapon()
+    if (this.status === 0x80) {
+      this.swapon()
+      process.nextTick(() => this.emit('mounted', this.mountpoint))
+    }
   }
 
-  swapon (callback = () => {}) {
+  swapon () {
     const swapfile = path.join(this.mountpoint, 'swapfile')
     const tmpswapfile = path.join(this.mountpoint, 'tmpswapfile')
     child.exec('cat /proc/swaps', (err, stdout) => {

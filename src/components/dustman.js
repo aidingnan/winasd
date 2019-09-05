@@ -12,27 +12,24 @@ const sata = require('./sata')
 // .winas-deleted-<uuid>
 
 const prefix = '.winas-deleted-'
-let mountpoint = ''
 
 const match = name =>
   name.startsWith(prefix) &&
   validator.isUUID(name.slice(prefix.length))
 
-sata.once('mounted', mp => {
-  mountpoint = mp
-  fs.readdir(mp, (err, entries) =>
-    !err && entries.filter(match).forEach(name => recycle(name)))
-})
+sata.once('mounted', () =>
+  fs.readdir(sata.mountpoint, (err, entries) =>
+    !err && entries.filter(match).forEach(name => recycle(name))))
 
 const recycle = (source, callback = () => {}) => {
-  if (!mountpoint) {
+  if (!sata.mountpoint) {
     const err = new Error('not mounted')
     err.code = 'EUNAVAIL'
     return process.nextTick(() => callback(err))
   }
 
   const name = prefix + uuid.v4()
-  const target = path.join(mountpoint, name)
+  const target = path.join(sata.mountpoint, name)
   fs.rename(source, target, err => {
     if (err) return callback(err)
     fs.lstat(target, (err, stats) => {
