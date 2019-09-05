@@ -36,7 +36,12 @@ router.post('/unbind', (req, res, next) => {
 
   if (!auth.verify(authToken)) return res.status(401).end()
   unbind(encrypted, clean, (err, data) => {
-    console.log('unbind result', err, data)        
+    if (err) {  
+      let { code, message } = err
+      res.status(500).json({ code, message })
+    } else {
+      res.status(200).json(data)
+    }
   })
 })
 
