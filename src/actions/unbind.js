@@ -1,4 +1,5 @@
 const path = require('path')
+const fs = require('fs')
 const child = require('child_process')
 
 const blkid = require('../lib/blkid')
@@ -6,12 +7,19 @@ const ownership = require('../components/ownership')
 const winas = require('../components/winas')
 
 //  request cloud unbind first, if succeeds
-module.exports = (encrypted, cleanVolume, callback) => {
+module.exports = (encrypted, clean, callback) => {
+  console.log('encrypted', encrypted)
+  console.log('clean', clean)
+
   ownership.unbind(encrypted, err => {
+
+    console.log('ownership.unbind', err) 
+
     if (err) {
       callback(err)
     } else {
-      if (!cleanVolume) return callback(null)
+
+      if (!clean) return callback(null)
 
       console.log('unbinding start polling owner and winas')
 
@@ -21,7 +29,6 @@ module.exports = (encrypted, cleanVolume, callback) => {
           clearTimeout(timeout) 
 
           /** 
-
           {
              "blockdevices": [
                 {"name":"sda", "maj:min":"8:0", "rm":false, "size":"223.6G", "ro":false, "type":"disk", "mountpoint":null},
@@ -59,9 +66,7 @@ module.exports = (encrypted, cleanVolume, callback) => {
                     child.exec(`btrfs subvolume delete --commit-after ${tmpVol}`, err => {
                       console.timeEnd('unbind-delete-tmpvol')
                       if (err) return callback(err) 
-                      callback(null, {
-                        cleanVolume: '
-                      })
+                      callback(null, { clean: 'succeeded' })
                     }) 
                   })
                 })
@@ -73,15 +78,15 @@ module.exports = (encrypted, cleanVolume, callback) => {
         }
       }, 1000)
 
-      const timeout = setTimeout(r(() => {
+      const timeout = setTimeout(() => {
         clearInterval(polling)
         callback(null, { 
           timeout: 30,
           owner: ownership.owner || ownership.owner.id,
           winasState: winas.getState(),
-          cleanVolume: 'failed'
+          clean: 'failed'
         })
-      }), 30)
+      }, 30 * 1000)
     }
   })  
 }

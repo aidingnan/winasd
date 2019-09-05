@@ -17,8 +17,8 @@ class State {
   constructor (ctx, ...args) {
     this.ctx = ctx
     ctx.state = this
+    if (ctx instanceof EventEmitter) ctx.emit('enteringState', this.constructor.name)
     this.enter(...args)
-
     if (ctx instanceof EventEmitter) ctx.emit(this.constructor.name)
   }
 
@@ -147,13 +147,13 @@ class Started extends State {
 class Stopping extends State {
   enter (winas) {
     super.enter()
-    this.swapoff(err => {
+    // this.swapoff(err => {
       // TODO: err ?
-      if (err) console.log('swapoff error: ', err)
+      // if (err) console.log('swapoff error: ', err)
       winas.kill()
       winas.on('error', err => console.log('Winas Error in Stopping: neglected', err))
       winas.on('close', (code, signal) => this.setState('Stopped'))
-    })
+    // })
   }
 
   swapoff (callback) {
@@ -243,7 +243,8 @@ class Winas extends EventEmitter {
       this.send({ type: 'token', data: this.token })
     }
     if (this.owner) {
-      this.send({ type: 'boundUser', data: this.userStore.data })
+      // this.send({ type: 'boundUser', data: this.userStore.data })
+      this.send({ type: 'boundUser', data: this.owner })  
     }
     this.send({ type: 'device', data: { deviceSN: Config.cloud.id } })
   }

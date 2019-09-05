@@ -1,8 +1,10 @@
 const express = require('express')
 const router = express.Router()
 
-const unbind = require('../actions/unbind')
 const timedate = require('../lib/timedate')
+const auth = require('../components/local-auth')
+const unbind = require('../actions/unbind')
+
 
 router.patch('/', (req, res) => {
 })
@@ -23,19 +25,18 @@ router.post('/bind', (req, res, next) => {
 })
 
 router.post('/unbind', (req, res, next) => {
-  let { encrypted, authToken, cleanVolume } = req.body
-  if (cleanVolume === undefined) cleanVolume = false
+  let { encrypted, authToken, clean } = req.body
+  if (clean === undefined) clean = false
 
-  if (typeof encrypted !== 'string' || !encrytped ||
+  if (typeof encrypted !== 'string' || !encrypted ||
     typeof authToken !== 'string' || !authToken ||
-    typeof cleanVolume !== 'boolean') {
+    typeof clean !== 'boolean') {
     return res.status(400).end()
   }
 
   if (!auth.verify(authToken)) return res.status(401).end()
-
-  unbind(encrytped, cleanVolume, (err, data) => {
-        
+  unbind(encrypted, clean, (err, data) => {
+    console.log('unbind result', err, data)        
   })
 })
 
