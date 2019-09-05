@@ -1,9 +1,9 @@
 const crypto = require('crypto')
 
 const deepEqual = require('fast-deep-equal')
+const debug = require('debug')('ws:auth')
 
 const led = require('./led') 
-const bled = require('./bled')
 
 const KEYS = 'abcdefg12345678'.split('')
 const RandomKey = () => KEYS.map(x => KEYS[Math.round(Math.random() * 14)]).join('')
@@ -19,13 +19,17 @@ const COLORS = [
 
 const CreateArgs = () => COLORS[Math.floor(Math.random() * 6)]
 
+const useFixedToken = process.argv.find(arg => arg === '--use-fixed-local-token')
+const fixedToken = "2b5c2d7c7d6ce647266bb08891e037e38cbfd36fac32e40250e517120a0bfecaf197121889fbec76657e79ed0137ed40"
+
+console.log('local auth accepts fixed token:', fixedToken)
+
 /**
  * Hardware Auth
  * Using Led color or touch-button to check is it owner operation
  */
 class LocalAuth {
   constructor (ctx) {
-    // this.ctx = ctx
     this._state = 'Idle' // 'Workding'
     this.timer = undefined // working timer
     this.secret = RandomKey()
@@ -37,21 +41,6 @@ class LocalAuth {
         console.log('Local Auth Change State :  ', this._state, '  ->  ', v)
         if (v === 'Idle') this.args = undefined
         this._state = v
-      }
-    })
-
-    const verifyToken = this.verify.bind(this)
-    bled.setAuth(verifyToken)
-
-    bled.on('disconnect', () => {
-      // TODO
-    })
-
-    bled.on('message', msg => {
-      if (msg.charUUID === '60000003-0182-406c-9221-0a6680bd0943') {
-        switch (msg.op) {
-          // case
-        }
       }
     })
   }
@@ -80,7 +69,8 @@ class LocalAuth {
   stop () {
     if (this.state === 'Idle') return
     clearTimeout(this.timer)
-    led.runGroup(this.ctx.colorGroup())
+    // led.runGroup(this.ctx.colorGroup())
+    led.runGroup(led.colorGroup())
     this.state = 'Idle'
   }
 
@@ -108,6 +98,8 @@ class LocalAuth {
   // verify token
   // the bound version is set to bled
   verify (token) {
+    if (useFixedToken) return token === fixedToken
+
     try {
       // eslint-disable-next-line node/no-deprecated-api
       const decipher = crypto.createDecipher('aes128', this.secret)
@@ -125,6 +117,5 @@ class LocalAuth {
 }
 
 const localAuth = new LocalAuth()
-// const verify = localAuth.verify.bind(localAuth)
 
 module.exports = localAuth
