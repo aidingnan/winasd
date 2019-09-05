@@ -52,9 +52,9 @@ class Sata extends EventEmitter {
           this.setStatus(0x80)
         }
       } else {
-        mkdirp(volumeDir, err => {
+        mkdirp(mountpoint, err => {
           if (err) return this.setStatus(0xff)
-          child.exec(`mount -t btrfs /dev/sda' ${mountpoint}`, err => {
+          child.exec(`mount -t btrfs /dev/sda ${mountpoint}`, err => {
             if (err) {
               this.setStatus(0x04)
             } else {
@@ -79,8 +79,8 @@ class Sata extends EventEmitter {
   }
 
   swapon () {
-    const swapfile = path.join(this.mountpoint, 'swapfile')
-    const tmpswapfile = path.join(this.mountpoint, 'tmpswapfile')
+    const swapfile = path.join(this.mountpoint, '.winas-swapfile')
+    const tmpswapfile = path.join(this.mountpoint, '.winas-tmpswapfile')
     child.exec('cat /proc/swaps', (err, stdout) => {
       if (err) return
       if (stdout.toString().indexOf(swapfile) !== -1) return
