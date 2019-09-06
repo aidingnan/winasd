@@ -1,11 +1,8 @@
 const express = require('express')
 const router = express.Router()
 
-<<<<<<< HEAD
 const overview = require('../actions/overview')
 const unbind = require('../actions/unbind')
-=======
->>>>>>> a5acfef4a37e4063b68c5d2ad907bd54d10d37cd
 const timedate = require('../lib/timedate')
 const auth = require('../components/local-auth')
 const unbind = require('../actions/unbind')
