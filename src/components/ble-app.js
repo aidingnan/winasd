@@ -1,6 +1,6 @@
 const debug = require('debug')('ws:bpp')
 
-const sata = require('./sata')
+const sata = require('./diskman')
 const ownership = require('./ownership')
 const ble = require('./ble')
 const auth = require('./local-auth')

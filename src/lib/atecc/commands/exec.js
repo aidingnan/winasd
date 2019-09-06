@@ -1,5 +1,5 @@
 /** command polling, from latest cryptoauthlib, lib/atca_execution.c **/
-const POLLING_INIT = 50
+const POLLING_INIT = 10
 const POLLING_FREQUENCY = 25
 const POLLING_MAX = 2500
 
@@ -69,9 +69,10 @@ module.exports = {
         throw err
       } else if (val === 0x11) {
         // we dont use _handleResponse in wakeAsync, so this is considered an error
-        const err = new Error('unexpected wake response')
-        err.eccStatusCode = err.code = 'ECC_WAKE'
-        throw err
+        // const err = new Error('unexpected wake response')
+        // err.eccStatusCode = err.code = 'ECC_WAKE'
+        // throw err
+        return
       } else if (val === 0xee) {
         const err = new Error('watchdog about to expire')
         err.eccStatusCode = err.code = 'ECC_WATCHDOG'

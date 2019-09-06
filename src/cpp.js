@@ -7,7 +7,7 @@ const config = require('config')
 const bled = require('./components/bled')
 const ecc = require('../lib/atecc/atecc')
 const led = require('./components/led')
-const sata = require('./components/sata')
+const sata = require('./components/diskman')
 const nm = require('./components/nm')
 const http = require('./components/http')
 const localAuth = require('./components/localAuth')
@@ -22,7 +22,7 @@ ecc.on('error', () => {
   // set LED
 })
 
-sata.on('statusUpdate', status => {
+sata.on('status', status => {
   // set LED
 })
   

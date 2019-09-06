@@ -7,7 +7,7 @@ const Bluetooth = require('../woodstock/winas/bluetooth')
 const DBus = require('../woodstock/lib/dbus')
 const { STRING } = require('../woodstock/lib/dbus-types')
 
-const sata = require('./sata')
+const sata = require('./diskman')
 
 
 /**

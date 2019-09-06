@@ -33,10 +33,132 @@ pan-NNNN
 - 0x02，已绑定
 - 0x03，winasd无法确定绑定状态，最常见的原因是设备刷机之后丢失用户文件且无法联网获取。
 
+### addAndActive (connect wifi)
+
+### addAndActiveAndBound (connect wifi and bind)
+
+### (new) cleanVolume
+
+### bind ???
+
+### unbind ???
+
 # 3. Http接口
 
-TBD
+### GET /
 
-# 4. Channel接口
+say hello
 
-TBD
+### GET /info
+
+由appService.view提供
+
+### PATCH /winasd
+
+shutdown, reboot, root, unroot，由appService.PATCH提供
+
+### GET /winasd/info
+
+与`/info`重复，取消
+
+### GET /winasd/upgrade
+
+appService.upgrade.LIST({}, req.body, ...)
+
+### POST /winasd/device
+
+更新设备名称，appService.updateDeviceName(req.user, req.body.name...)
+
+### PATCH /winasd/localAuth
+
+request local token
+
+appService.localAuth.request
+
+### POST /winasd/localAuth
+
+appService.localAuth.auth(req.body...)
+
+### POST /winasd/bind
+
+NO token???
+
+appService.requestBind(req.body.encrytped)
+
+### POST /winasd/unbind
+
+req.body.encrypted
+req.body.authToken
+req.body.cleanVolume (boolean)
+
+appService.requestUnbind(encrypted, cleanVolume)
+
+### GET /winasd/timedate
+
+```js
+req.body {
+  camel: true or false // defaul false
+}
+```
+
+```js
+{ 'Local time': 'Thu 2019-09-05 00:06:08 CST',
+  'Universal time': 'Wed 2019-09-04 16:06:08 UTC',
+  'RTC time': 'Wed 2019-09-04 16:06:09',
+  'Time zone': 'Asia/Shanghai (CST, +0800)',
+  'System clock synchronized': 'yes',
+  'NTP service': 'active',
+  'RTC in local TZ': 'no' }
+```
+```js
+{ localTime: 'Wed 2019-09-04 23:59:54 CST',
+  universalTime: 'Wed 2019-09-04 15:59:54 UTC',
+  rtcTime: 'Wed 2019-09-04 15:59:55',
+  timeZone: 'Asia/Shanghai (CST, +0800)',
+  systemClockSynchronized: 'yes',
+  ntpService: 'active',
+  rtcInLocalTz: 'no' }
+```
+
+
+
+# 4. Responder
+
+在实现上，`Channel`模块作为一个纯粹的message dispatcher实现；
+
+`Channel`模块emit的message由各个责任模块自己侦听处理；其中负责向云返回mqtt或者http/pipe消息的模块称为responder。
+
+responder目前只有pipe服务；message格式：
+
+```
+message {
+  urlPath
+  verb
+  body
+  params
+  user
+}
+```
+
+### PATCH /winasd
+
+bodym = Object.assing({}, body, params)
+
+ctx.PATCH
+
+### (GET) /winasd/info 
+
++ verb not checked
++ ctx.view()
+
+### (GET) /winasd/device
+
+ctx.updateDeviceName(null, bodym.name)
+
+### GET /winasd/upgrade
+
+ctx.upgrade.LIST
+
+# 主动上报mqtt
+
+deviceName, IP, Link-local IP, Version (据说没有在用)

@@ -1,30 +1,40 @@
-const child = require('child_process')
+const path = require('path')
 
 const ownership = require('../components/ownership')
 const winas = require('../components/winas')
+const sata = require('../components/diskman')
+const recycle = require('../components/dustman')
 
-//  if Unbind suceeded 
-//  1. device module should clean device name and 
-//  2. wait winas to stop
-//  2. clean network manager files (this module, after return) except usb0.nmconnection
-module.exports = (encrypted, cleanVolume, callback) => {
+//  request cloud unbind first, if succeeds
+module.exports = (encrypted, clean, callback) => {
   ownership.unbind(encrypted, err => {
     if (err) {
       callback(err)
     } else {
+      if (!clean) return callback(null)
 
       const polling = setInterval(() => {
-        if (!ownership.owner && winas.getState() === 'Stopped') {
-          
+        if (ownership.owner === null && winas.getState() === 'Stopped') {
+          clearTimeout(timeout)
+          clearInterval(polling)
+
+          const winasDir = path.join(sata.mountpoint, 'winas')
+          recycle(winasDir, err => {
+            callback(null, { clean: err ? 'failed' : 'succeeded' })
+            callback = () => {}
+          })
+
+          setTimeout(() => {
+            callback(null, { clean: 'progressing' })
+            callback = () => {}
+          }, 30 * 1000)
         }
       }, 1000)
 
-      const timeout = setTimeout(r(() => {
+      const timeout = setTimeout(() => {
         clearInterval(polling)
-        callback(null, { 
-          cleanVolume: 'failed'
-        })
-      }), 30)
+        callback(null, { clean: 'timeout' })
+      }, 30 * 1000)
     }
-  })  
+  })
 }
