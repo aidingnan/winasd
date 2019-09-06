@@ -5,7 +5,7 @@ const overview = require('../actions/overview')
 const unbind = require('../actions/unbind')
 const timedate = require('../lib/timedate')
 const auth = require('../components/local-auth')
-const unbind = require('../actions/unbind')
+const upgrade = require('../components/upgrade')
 
 router.patch('/', (req, res) => {
 })
@@ -20,8 +20,9 @@ router.get('/info', (req, res) => {
   }) 
 })
 
-router.get('/upgrade', (req, res) => {
-}) 
+router.get('/upgrade', (req, res) => 
+  upgrade.LIST({}, req.body, (err, data) => 
+    err ? res.error : res.success(data))) 
 
 // update device name
 router.post('/device', (req, res, next) => {
