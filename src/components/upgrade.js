@@ -2,7 +2,7 @@
  * @Author: JackYang
  * @Date: 2019-07-08 14:06:53
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-09-04 20:44:30
+ * @Last Modified time: 2019-09-06 16:07:16
  *
  */
 
@@ -32,9 +32,8 @@ const readFileWithoutErrorAsync = async (fp) => {
 }
 
 class Upgrade extends event {
-  constructor (ctx, tmpDir /*, dir */) {
+  constructor (tmpDir /*, dir */) {
     super()
-    this.ctx = ctx
     this.tmpDir = tmpDir
     this.currentVersion = SoftwareVersion()
     channel.on('checkout', this.handleCheckoutMessage.bind(this))
@@ -124,6 +123,6 @@ class Upgrade extends event {
   }
 }
 
-const upgrade = new Upgrade()
+const upgrade = new Upgrade(Config.volume.tmp)
 
 module.exports = upgrade
