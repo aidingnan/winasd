@@ -9,6 +9,9 @@ const unbind = require('../actions/unbind')
 router.patch('/', (req, res) => {
 })
 
+router.get('/info', (req, res) => {
+})
+
 router.get('/upgrade', (req, res) => {
 }) 
 
@@ -21,6 +24,7 @@ router.patch('/localAuth', (req, res, next) => {
 router.post('/localAuth', (req, res, next) => {
 })
 
+// not used ???
 router.post('/bind', (req, res, next) => {
 })
 

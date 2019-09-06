@@ -5,7 +5,7 @@ const strip = require('strip-ansi')
 
 const config = require('config')
 const ownership = require('./ownership')
-const sata = require('./sata')
+const sata = require('./diskman')
 
 // this is a higher order function
 // returns a racer function, which is also a higher order function

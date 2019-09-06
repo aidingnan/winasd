@@ -6,7 +6,7 @@ const validator = require('validator')
 const uuid = require('uuid')
 const rimraf = require('rimraf')
 
-const sata = require('./sata')
+const sata = require('./diskman')
 
 // all files names as the following pattern is going to be removed by dustman
 // .winas-deleted-<uuid>

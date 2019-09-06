@@ -2,7 +2,7 @@ const path = require('path')
 
 const ownership = require('../components/ownership')
 const winas = require('../components/winas')
-const sata = require('../components/sata')
+const sata = require('../components/diskman')
 const recycle = require('../components/dustman')
 
 //  request cloud unbind first, if succeeds
