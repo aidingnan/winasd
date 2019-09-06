@@ -1,10 +1,21 @@
 const express = require('express')
 const router = express.Router()
 
+const overview = require('../actions/overview')
 const unbind = require('../actions/unbind')
 const timedate = require('../lib/timedate')
 
 router.patch('/', (req, res) => {
+})
+
+router.get('/info', (req, res) => {
+  overview((err, data) => {
+    if (err) {
+      res.error(err)
+    } else {
+      res.success(data)
+    }
+  }) 
 })
 
 router.get('/upgrade', (req, res) => {
