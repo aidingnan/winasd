@@ -1,10 +1,11 @@
-const debug = require('debug')('ws:bpp')
+const debug = require('debug')('ws:ble-pp')
 
 const sata = require('./components/diskman')
 const ownership = require('./components/ownership')
 const ble = require('./components/ble')
 const localAuth = require('./components/local-auth')
-const { addAndActive, addAndActiveAndBound } = require('./components/actions')
+const connectWifiAndBind = require('./actions/connect-wifi-and-bind')
+const connectWifi = require('./actions/connect-wifi')
 
 /**
 This is a mediator pattern.
@@ -90,7 +91,7 @@ ble.on('message', msg => {
   } else if (msg.charUUID === '70000003-0182-406c-9221-0a6680bd0943') {
     switch (msg.action) {
       case 'addAndActive':
-        addAndActive(msg.body.ssid, msg.body.pwd, (err, data) => {
+        connectWifi(msg.body.ssid, msg.body.pwd, (err, data) => {
           let packet = { seq: msg.seq }  
           if (err) {
             packet.error = err
@@ -101,7 +102,7 @@ ble.on('message', msg => {
         })
         break
       case 'addAndActiveAndBound':
-        addAndActiveAndBound(msg.body.ssid, msg.body.pwd, msg.body.encrypted, res => {
+        connectWifiAndBind(msg.body.ssid, msg.body.pwd, msg.body.encrypted, res => {
           let packet = { seq: msg.seq }
           if (res instanceof Error) {
             packet.error = res
