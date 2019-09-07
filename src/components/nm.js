@@ -1,25 +1,24 @@
-const os = require('os')
 const debug = require('debug')('ws:net')
 const child = require('child_process')
-const readline = require('readline')
+// const readline = require('readline')
 
 const DBus = require('../woodstock/lib/dbus')
-const { STRING } = require('../woodstock/lib/dbus-types')
+// const { STRING } = require('../woodstock/lib/dbus-types')
 const NM = require('../woodstock/nm/NetworkManager')
 /*
   NetworkManager State
-  NM_STATE_UNKNOWN = 0 
-  NM_STATE_ASLEEP = 10 
+  NM_STATE_UNKNOWN = 0
+  NM_STATE_ASLEEP = 10
   NM_STATE_DISCONNECTED = 20
   NM_STATE_DISCONNECTING = 30
   NM_STATE_CONNECTING = 40
   NM_STATE_CONNECTED_LOCAL = 50
-  NM_STATE_CONNECTED_SITE = 60 
+  NM_STATE_CONNECTED_SITE = 60
   NM_STATE_CONNECTED_GLOBAL = 70
   */
 
 class NetWorkManager extends require('events') {
-  constructor() {
+  constructor () {
     super()
     this.dbus = new DBus()
     this.dbus.on('connect', () => {
@@ -29,70 +28,95 @@ class NetWorkManager extends require('events') {
     })
   }
 
-  set nm(x) {
+  set nm (x) {
     if (this._nm) this._nm.removeAllListeners()
     this._nm = x
     if (!x) return
     x.on('NM_DeviceChanged', (...args) => this.emit('NM_DeviceChanged', ...args))
-    x.on('NM_StateChanged', (...args) => (this.emit('NM_StateChanged', ...args), this.handleStateChanged(...args)))
-    x.on('NM_ST_ConnectionChanged', (...args) => (this.emit('NM_ST_ConnectionChanged', ...args), this.handleConnectionChanaged(...args)))
+    x.on('NM_StateChanged', (...args) => {
+      this.emit('NM_StateChanged', ...args)
+      this.handleStateChanged(...args)
+    })
+    x.on('NM_ST_ConnectionChanged', (...args) => {
+      this.emit('NM_ST_ConnectionChanged', ...args)
+      this.handleConnectionChanaged(...args)
+    })
     x.on('NM_AP_AccessPointAdded', (...args) => this.emit('NM_AP_AccessPointAdded', ...args))
     x.on('NM_AP_AccessPointRemoved', (...args) => this.emit('NM_AP_AccessPointRemoved', ...args))
   }
 
-  get nm() {
+  get nm () {
     return this._nm
   }
 
-  initState() {
+  initState () {
     this.nm.State((err, data) => {
-      this.emit('started', this.hasOwnProperty('state') ? this.state : err ? 0 : data) 
-      if (this.hasOwnProperty('state')) return
+      if (Object.prototype.hasOwnProperty.call(this, 'state')) {
+        this.emit('started', this.state)
+        return
+      } else if (err) {
+        this.emit('started', 0)
+      } else {
+        this.emit('started', data)
+      }
+
+      // this.emit('started', this.hasOwnProperty('state') ? this.state : err ? 0 : data)
+      // if (this.hasOwnProperty('state')) return
+
       if (err) return setTimeout(() => this.initState(), 1000)
       this.state = data || 0
     })
     this.nm.addressDatas((err, data) => {
-      if (data) this.addresses = data
+      if (!err && data) {
+        this.addresses = data
+      }
     })
     this.nm.currentNetinfo((err, data) => {
-      if (data) this.detail = data
+      if (!err && data) {
+        this.detail = data
+      }
     })
   }
 
-  connect(ssid, pwd, callback) {
-    this.nm ? this.nm.connect2(ssid, pwd, (...args) => 
-        (child.exec('sync',() => {}), callback(...args)))
-      : callback(Object.assign(new Error('nm not started'), {code: 'ESTATE'}))
+  connect (ssid, pwd, callback) {
+    if (this.nm) {
+      this.nm.connect2(ssid, pwd, (err, ...args) => {
+        child.exec('sync', () => {})
+        callback(err, ...args)
+      })
+    } else {
+      callback(Object.assign(new Error('nm not started'), { code: 'ESTATE' }))
+    }
   }
 
-  devices() {
+  devices () {
     return this.nm ? this.nm.devices : []
   }
 
-  handleDeviceChanged() {
+  handleDeviceChanged () {
 
   }
 
-  handleConnectionChanaged() {
+  handleConnectionChanaged () {
     debug('handleConnectionChanaged')
   }
 
-  handleStateChanged(state) {
+  handleStateChanged (state) {
     debug('handleStateChanged', state)
     this.state = state
-    //FIXME: will race
+    // FIXME: will race
     if (state === 70) {
       this.emit('connect')
       this.nm.addressDatas((err, data) => {
-        if (data) this.addresses = data
+        if (!err && data) this.addresses = data
       })
       this.nm.currentNetinfo((err, data) => {
-        if (data) this.detail = data
+        if (!err && data) this.detail = data
       })
     }
   }
 
-  view() {
+  view () {
     return {
       state: this.state,
       addresses: this.addresses,

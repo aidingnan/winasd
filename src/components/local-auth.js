@@ -1,7 +1,7 @@
 const crypto = require('crypto')
 
 const deepEqual = require('fast-deep-equal')
-const debug = require('debug')('ws:auth')
+// const debug = require('debug')('ws:auth')
 
 const led = require('./led')
 
