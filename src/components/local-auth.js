@@ -19,10 +19,9 @@ const COLORS = [
 
 const CreateArgs = () => COLORS[Math.floor(Math.random() * 6)]
 
-const useFixedToken = process.argv.find(arg => arg === '--use-fixed-local-token')
 const fixedToken = '2b5c2d7c7d6ce647266bb08891e037e38cbfd36fac32e40250e517120a0bfecaf197121889fbec76657e79ed0137ed40'
-
-console.log('local auth accepts fixed token:', fixedToken)
+const useFixedToken = process.argv.find(arg => arg === '--use-fixed-local-token')
+if (useFixedToken) console.log('local auth accepts fixed token:', fixedToken)
 
 /**
  * Hardware Auth
