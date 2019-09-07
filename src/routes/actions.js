@@ -20,9 +20,9 @@ router.get('/info', (req, res) => {
   }) 
 })
 
-router.get('/upgrade', (req, res) => 
-  upgrade.LIST({}, req.body, (err, data) => 
-    err ? res.error : res.success(data))) 
+router.get('/upgrade', (req, res) =>
+  upgrade.listLocal((err, data) =>
+    err ? res.error : res.success(data)))
 
 // update device name
 router.post('/device', (req, res, next) => {
