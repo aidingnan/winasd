@@ -127,6 +127,7 @@ ble.on('message', msg => {
         })
         break
       default:
+        // TODO error ?
         break
     }
   }
