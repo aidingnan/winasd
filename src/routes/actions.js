@@ -4,10 +4,44 @@ const router = express.Router()
 const overview = require('../actions/overview')
 const unbind = require('../actions/unbind')
 const timedate = require('../lib/timedate')
+const device = require('../components/device')
+const ownership = require('../components/ownership')
 const auth = require('../components/local-auth')
 const upgrade = require('../components/upgrade')
 
+// TODO no auth ???
 router.patch('/', (req, res) => {
+  switch (req.body.op) {
+    case 'reboot':
+      device.reboot()
+      res.status(200).end()
+      break
+    case 'shutdown':
+      device.shutdown()
+      res.status(200).end()
+      break
+    case 'root':
+      ownership.root(err => {
+        if (err) {
+          res.status(500).json({ code: err.code, message: err.message })
+        } else {
+          res.status(200).end()
+        }
+      })
+      break
+    case 'unroot':
+      ownership.unroot(err => {
+        if (err) {
+          res.status(500).json({ code: err.code, message: err.message })
+        } else {
+          res.status(200).end()
+        }
+      })
+      break
+    default:
+      res.status(400).end()
+      break
+  }
 })
 
 router.get('/info', (req, res) => {
@@ -17,7 +51,7 @@ router.get('/info', (req, res) => {
     } else {
       res.success(data)
     }
-  }) 
+  })
 })
 
 router.get('/upgrade', (req, res) =>
@@ -60,8 +94,8 @@ router.post('/unbind', (req, res, next) => {
 
   if (!auth.verify(authToken)) return res.status(401).end()
   unbind(encrypted, clean, (err, data) => {
-    if (err) {  
-      let { code, message } = err
+    if (err) {
+      const { code, message } = err
       // console.log('unbind error', err)
       // if cloud forbidden this should be 4xx
       res.status(500).json({ code, message })
@@ -74,12 +108,12 @@ router.post('/unbind', (req, res, next) => {
 router.post('/timedate', (req, res) => {
   timedate(req.body, (err, data) => {
     if (err) {
-      let { code, message } = err
+      const { code, message } = err
       res.status(500).json({ code, message })
     } else {
       res.status(200).json(data)
     }
-  })  
+  })
 })
 
 module.exports = router

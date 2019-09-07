@@ -12,7 +12,6 @@ const debug = require('debug')('ws:device')
 const ecc = require('../lib/atecc/atecc')
 const encode = require('../lib/usn')
 
-
 /**
 sn, usn, version, hostname, model
 This module emits ready or error
@@ -32,13 +31,13 @@ class Device extends EventEmitter {
     let count = 4
     ecc.serialNumber({}, (err, data) => {
       if (err) return this.emit('error', err)
-      const sn = data.toString().trim() 
-      if (!/^0123[0-9a-f]{12}ee$/.test(sn)) { 
+      const sn = data.toString().trim()
+      if (!/^0123[0-9a-f]{12}ee$/.test(sn)) {
         return this.emit('error', new Error(`bad sn ${sn}`))
       }
 
       this.sn = sn
-      this.usn = encode(sn) 
+      this.usn = encode(sn)
       this.homeDir = path.join(config.volume.cloud, config.cloud.domain, sn)
 
       // TODO remove this global
@@ -55,7 +54,7 @@ class Device extends EventEmitter {
 
     fs.readFile('/etc/version', (err, data) => {
       if (!err) {
-        let r = data.toString().match(/^v(\d+\.\d+\.\d+)*/)
+        const r = data.toString().match(/^v(\d+\.\d+\.\d+)*/)
         if (Array.isArray(r)) this.version = r[1]
       }
 
@@ -85,8 +84,22 @@ class Device extends EventEmitter {
 
         if (!--count) this.emit('ready')
       })
-    }) 
+    })
+  }
+
+  reboot () {
+    this.emit('shutdown')
+    this.setTimeout(() => {
+      child.exec('reboot', () => {})
+    }, 5 * 1000)
+  }
+
+  shutdown () {
+    this.emit('shutdown')
+    this.setTimeout(() => {
+      child.exec('shutdown', () => {})
+    }, 5 * 1000)
   }
 }
 
-module.exports = new Device
+module.exports = new Device()
