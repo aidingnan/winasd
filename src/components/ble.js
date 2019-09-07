@@ -7,9 +7,6 @@ const Bluetooth = require('../woodstock/winas/bluetooth')
 const DBus = require('../woodstock/lib/dbus')
 const { STRING } = require('../woodstock/lib/dbus-types')
 
-const sata = require('./diskman')
-
-
 /**
  * BLE 负责初始化 dbus对象
  * 由于ble和networkmanager 都使用debus提供服务，使用服务
@@ -45,12 +42,12 @@ class BLE extends EventEmitter {
 
     // updated when device connected / disconnected
     // this.connected = false
-  
+
     // this.msgHandler = msgHandler
     this.dbus = new DBus()
     this.ble = new Bluetooth(this.boundState, this.sataState, this.localName)
 
-/**
+    /**
     this.ble.on('LocalAuthWrite', this.handleBleMessage.bind(this, 'LocalAuthWrite')) // LocalAuth
     this.ble.on('NSWrite', this.handleBleMessage.bind(this, 'NSWrite')) // NetSetting
     this.ble.on('BLE_DEVICE_DISCONNECTED', this.handleBleMessage.bind(this, 'deviceDisconnected')) // Device Disconnected
@@ -65,8 +62,8 @@ class BLE extends EventEmitter {
         return
       }
 
-      this.emit('message', Object.assign(obj, { 
-        charUUID: '60000003-0182-406c-9221-0a6680bd0943' 
+      this.emit('message', Object.assign(obj, {
+        charUUID: '60000003-0182-406c-9221-0a6680bd0943'
       }))
     })
 
@@ -75,26 +72,26 @@ class BLE extends EventEmitter {
       try {
         msg = JSON.parse(data)
       } catch (e) {
-        return  // TODO
+        return // TODO
       }
 
       if (!this.verify) {
-        let err = new Error('verify not found')
+        const err = new Error('verify not found')
         err.code = 'EUNAVAIL'
         this.send('70000002-0182-406c-9221-0a6680bd0943', {
           seq: msg.seq,
-          error: err 
+          error: err
         })
-      } else if (typeof msg.token !== 'string' || !msg.token ||!this.verify(msg.token)) {
-        let err = new Error('access denied')
+      } else if (typeof msg.token !== 'string' || !msg.token || !this.verify(msg.token)) {
+        const err = new Error('access denied')
         err.code = 'EPERM'
         this.send('70000002-0182-406c-9221-0a6680bd0943', {
           seq: msg.seq,
-          error: err 
+          error: err
         })
       } else {
-        this.emit('message', Object.assign(msg, { 
-          charUUID: '70000003-0182-406c-9221-0a6680bd0943' 
+        this.emit('message', Object.assign(msg, {
+          charUUID: '70000003-0182-406c-9221-0a6680bd0943'
         }))
       }
     })
@@ -146,7 +143,7 @@ class BLE extends EventEmitter {
     this.updateAdv()
   }
 
-/**
+  /**
   handleBleMessage (type, data) {
     console.log('type', type)
     console.log('data', data)
@@ -179,7 +176,7 @@ class BLE extends EventEmitter {
     }
   }
 
-  // char uuid 
+  // char uuid
   // 60000002-0182-406c-9221-0a6680bd0943 auth
   // 70000002-0182-406c-9221-0a6680bd0943 command
   send (charUUID, obj) {
@@ -187,6 +184,6 @@ class BLE extends EventEmitter {
   }
 }
 
-const ble = new BLE() 
+const ble = new BLE()
 
 module.exports = ble

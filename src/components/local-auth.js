@@ -3,24 +3,24 @@ const crypto = require('crypto')
 const deepEqual = require('fast-deep-equal')
 const debug = require('debug')('ws:auth')
 
-const led = require('./led') 
+const led = require('./led')
 
 const KEYS = 'abcdefg12345678'.split('')
 const RandomKey = () => KEYS.map(x => KEYS[Math.round(Math.random() * 14)]).join('')
 
 const COLORS = [
-  ['#ff0000', 'alwaysOn'], 
-  ['#ffffff', 'alwaysOn'], 
+  ['#ff0000', 'alwaysOn'],
+  ['#ffffff', 'alwaysOn'],
   ['#0000ff', 'alwaysOn'],
-  ['#ff0000', 'breath'], 
-  ['#00ff00', 'breath'], 
+  ['#ff0000', 'breath'],
+  ['#00ff00', 'breath'],
   ['#ffffff', 'breath']
 ]
 
 const CreateArgs = () => COLORS[Math.floor(Math.random() * 6)]
 
 const useFixedToken = process.argv.find(arg => arg === '--use-fixed-local-token')
-const fixedToken = "2b5c2d7c7d6ce647266bb08891e037e38cbfd36fac32e40250e517120a0bfecaf197121889fbec76657e79ed0137ed40"
+const fixedToken = '2b5c2d7c7d6ce647266bb08891e037e38cbfd36fac32e40250e517120a0bfecaf197121889fbec76657e79ed0137ed40'
 
 console.log('local auth accepts fixed token:', fixedToken)
 
