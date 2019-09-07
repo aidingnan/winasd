@@ -1,6 +1,6 @@
 const os = require('os')
-const config = require('config')
 const racer = require('../lib/racer')
+const device = require('../components/device')
 const ownership = require('../components/ownership')
 const connect = require('./connect-wifi')
 
@@ -37,7 +37,7 @@ module.exports = (ssid, password, encrypted, respond) =>
               respond({
                 success: 'BOUND',
                 data: {
-                  sn: config.cloud.id,
+                  sn: device.sn,
                   addr: ((
                     wlan0 = os.networkInterfaces().wlan0,
                     ip = wlan0 && wlan0.find(x => x.family === 'IPv4'),

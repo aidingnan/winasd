@@ -2,11 +2,10 @@ const path = require('path')
 const fs = require('fs')
 const child = require('child_process')
 const EventEmitter = require('events')
-const consts = require('constants')
+// const consts = require('constants')
 
 const rimraf = require('rimraf')
 const uuid = require('uuid')
-const config = require('config')
 const debug = require('debug')('ws:owner')
 
 const ecc = require('../lib/atecc/atecc')
@@ -133,7 +132,7 @@ ownership manages several trivial resources:
   - clean network manager connection files when own is nullified
 
 all load method are called only once during initialization.
-all save/clean methods are nextified, see nexter 
+all save/clean methods are nextified, see nexter
 */
 class Ownership extends EventEmitter {
   constructor (opts) {
@@ -143,7 +142,9 @@ class Ownership extends EventEmitter {
     this.tmpFile = path.join(opts.tmpDir, uuid.v4())
     this.channel = opts.channel
 
-    this.channel.on('token', token => this.token = token)
+    this.channel.on('token', token => {
+      this.token = token
+    })
     this.channel.on('ChannelConnected', msg => this.handleChannelConnected(msg))
     // TODO this.handleNext(this.handleChannelConnected.bind(this, msg)))
 
@@ -185,50 +186,50 @@ class Ownership extends EventEmitter {
   // this process should be synchronized (aka, one after another) to avoid race
   handleChannelConnected (msg) {
     debug(msg)
-try {
-    const err = new Error('bad owner message from channel')
-    if (!msg.info) return this.state.contextError(err)
+    try {
+      const err = new Error('bad owner message from channel')
+      if (!msg.info) return this.state.contextError(err)
 
-    const { signature, raw } = msg.info
-    // sig and raw must be simultaneously truthy or falsy
-    if (!!signature !== !!raw) return this.state.contextError(err)
+      const { signature, raw } = msg.info
+      // sig and raw must be simultaneously truthy or falsy
+      if (!!signature !== !!raw) return this.state.contextError(err)
 
-    // sig and raw can only be null once (brand new, not bound yet)
-    // in this case, owner must be null
-    if (signature === null && msg.owner !== null) return this.state.contextError(err)
+      // sig and raw can only be null once (brand new, not bound yet)
+      // in this case, owner must be null
+      if (signature === null && msg.owner !== null) return this.state.contextError(err)
 
-    this.verify(signature, raw, (err, verified) => {
-try {
-      if (err) return this.state.contextError(err)
-      if (!verified) {
-        const err = new Error('owner not verified')
-        return this.state.contextError(err)
-      }
+      this.verify(signature, raw, (err, verified) => {
+        try {
+          if (err) return this.state.contextError(err)
+          if (!verified) {
+            const err = new Error('owner not verified')
+            return this.state.contextError(err)
+          }
 
-      let { owner, username, phone } = msg
-      owner = owner ? { id: owner, username, phone } : null
+          let { owner, username, phone } = msg
+          owner = owner ? { id: owner, username, phone } : null
 
-      if (this.owner && owner && this.owner.id !== owner.id) {
-        const err = new Error('owner update not allowed')
-        return this.state.contextError(err)
-      }
+          if (this.owner && owner && this.owner.id !== owner.id) {
+            const err = new Error('owner update not allowed')
+            return this.state.contextError(err)
+          }
 
-      this.owner = owner
-      this.saveOwnerNext(this.saveOwner.bind(this))
-      if (owner === null) {
-        this.setDisplayName(null)
-        this.cleanNmConnections()
-      }
+          this.owner = owner
+          this.saveOwnerNext(this.saveOwner.bind(this))
+          if (owner === null) {
+            this.setDisplayName(null)
+            this.cleanNmConnections()
+          }
 
-      debug('emitting cloud owner', owner)
-      this.emit('owner', owner)
-} catch (e) {
-  console.log(e)
-}
-    })
-} catch (e) {
-  console.log(e)
-}
+          debug('emitting cloud owner', owner)
+          this.emit('owner', owner)
+        } catch (e) {
+          console.log(e)
+        }
+      })
+    } catch (e) {
+      console.log(e)
+    }
   }
 
   // wrapper to eliminate fulfilled and bypass null sig
@@ -279,20 +280,20 @@ try {
         const name = data.toString()
         if (name.length) this.displayName = name
       }
-    }) 
+    })
   }
 
   // this function is called by setDisplayName only
   saveDisplayName (name, callback) {
     if (typeof name === 'string' && name.length) {
-      fs.writeFile(this.displayNamePath, name, () => callback) 
+      fs.writeFile(this.displayNamePath, name, () => callback)
     } else {
       rimraf(this.displayNamePath, () => callback())
     }
   }
 
   setDisplayName (name) {
-    if (typeof name == 'string' && name.length) {
+    if (typeof name === 'string' && name.length) {
       this.displayName = name
       this.saveDisplayNameNext(this.saveDisplayName.bind(this, name))
     } else {
@@ -311,7 +312,7 @@ try {
         } else if (stdout.toString().trim() === 'false') {
           callback(null, false)
         } else {
-          const err = new Erro('bad data')
+          const err = new Error('bad data')
           callback(err)
         }
       }
@@ -341,7 +342,7 @@ try {
   }
 
   // /etc/NetworkManager/system-connections
-  // usb0.nmconnection 
+  // usb0.nmconnection
   cleanNmConnections (callback = () => {}) {
     const nmDir = '/etc/NetworkManager/system-connections'
     const reserved = ['usb0.nmconnection']

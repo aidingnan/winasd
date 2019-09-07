@@ -1,6 +1,6 @@
 const debug = require('debug')('ws:ble-pp')
 
-const sata = require('./components/diskman')
+const diskman = require('./components/diskman')
 const ownership = require('./components/ownership')
 const ble = require('./components/ble')
 const localAuth = require('./components/local-auth')
@@ -16,7 +16,7 @@ the action may be fulfilled by local-auth (6xx) or actions (7xx) modules respect
 
 it also listens to disconnect event from ble, and cancel challenge in local-auth.
 
-it also listens to sata and ownership module, and update ble's advertisements.
+it also listens to diskman and ownership module, and update ble's advertisements.
 
 The purpose is:
 
@@ -24,7 +24,7 @@ remove inter-dependency between ble and other modules.
 let those modules have no knowedge of the existence of ble.
 */
 let oldSata = 0x00
-sata.on('status', status => {
+diskman.on('status', status => {
   debug('sata status', status)
   if (status !== oldSata) {
     ble.updateSataState(status)
@@ -114,8 +114,9 @@ ble.on('message', msg => {
         break
 
       // TODO enforce rules ???
-      case 'cleanVolume': // this is triggered on checking stage
-        sata.format(err => {
+      // this is triggered on checking stage
+      case 'format':         
+        diskman.format(err => {
           let packet = { seq: msg.seq } 
           if (err) {
             packet.error = err
