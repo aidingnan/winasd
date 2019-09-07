@@ -85,9 +85,15 @@ class Starting extends State {
 
     this.winas = child.spawn('node', args, opts)
     this.winas.on('error', err => console.log('Winas Error in Starting: neglected', err))
-    this.winas.once('message', message => (this.ctx.emit('message', message), this.setState('Started', this.winas)))
+    this.winas.once('message', message => {
+      this.ctx.emit('message', message)
+      this.setState('Started', this.winas)
+    })
     // eslint-disable-next-line no-return-assign
-    this.winas.on('close', (code, signal) => (this.winas = null, this.setState('Failed', { code, signal })))
+    this.winas.on('close', (code, signal) => {
+      this.winas = null
+      this.setState('Failed', { code, signal })
+    })
   }
 
   stop () {
@@ -108,7 +114,10 @@ class Started extends State {
     this.winas = winas
     this.winas.on('error', err => console.log('Winas Error in Started: neglected', err))
     // eslint-disable-next-line no-return-assign
-    this.winas.on('close', (code, signal) => (this.winas = null, this.setState('Failed', { code, signal })))
+    this.winas.on('close', (code, signal) => {
+      this.winas = null
+      this.setState('Failed', { code, signal })
+    })
     this.winas.on('message', message => this.handleWinasMessage(message))
   }
 
@@ -148,11 +157,11 @@ class Stopping extends State {
   enter (winas) {
     super.enter()
     // this.swapoff(err => {
-      // TODO: err ?
-      // if (err) console.log('swapoff error: ', err)
-      winas.kill()
-      winas.on('error', err => console.log('Winas Error in Stopping: neglected', err))
-      winas.on('close', (code, signal) => this.setState('Stopped'))
+    // TODO: err ?
+    // if (err) console.log('swapoff error: ', err)
+    winas.kill()
+    winas.on('error', err => console.log('Winas Error in Stopping: neglected', err))
+    winas.on('close', (code, signal) => this.setState('Stopped'))
     // })
   }
 
@@ -244,7 +253,7 @@ class Winas extends EventEmitter {
     }
     if (this.owner) {
       // this.send({ type: 'boundUser', data: this.userStore.data })
-      this.send({ type: 'boundUser', data: this.owner })  
+      this.send({ type: 'boundUser', data: this.owner })
     }
     this.send({ type: 'device', data: { deviceSN: Config.cloud.id } })
   }
@@ -294,9 +303,18 @@ class Winas extends EventEmitter {
 
     if (!this.startCbs.length) {
       // eslint-disable-next-line no-return-assign
-      const f = err => (this.startCbs.forEach(cb => cb(err)), this.startCbs = [])
-      const startedHandler = () => (this.removeListener('Failed', failedHandler), f(null))
-      const failedHandler = () => (this.removeListener('Started', startedHandler), f(this.state.error))
+      const f = err => {
+        this.startCbs.forEach(cb => cb(err))
+        this.startCbs = []
+      }
+      const startedHandler = () => {
+        this.removeListener('Failed', failedHandler)
+        f(null)
+      }
+      const failedHandler = () => {
+        this.removeListener('Started', startedHandler)
+        f(this.state.error)
+      }
       this.once('Started', startedHandler)
       this.once('Failed', failedHandler)
       process.nextTick(() => this.state.start())
@@ -321,7 +339,10 @@ class Winas extends EventEmitter {
 
     if (!this.stopCbs.length) {
       // eslint-disable-next-line no-return-assign
-      this.once('Stopped', () => (this.stopCbs.forEach(cb => cb(null)), this.stopCbs = []))
+      this.once('Stopped', () => {
+        this.stopCbs.forEach(cb => cb(null))
+        this.stopCbs = []
+      })
       process.nextTick(() => this.state.stop())
     }
 
