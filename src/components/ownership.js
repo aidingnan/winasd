@@ -9,6 +9,7 @@ const config = require('config')
 const debug = require('debug')('ws:owner')
 
 const ecc = require('../lib/atecc/atecc')
+const device = require('./device')
 const channel = require('./channel')
 const { reqBind, reqUnbind, verify } = require('../lib/lifecycle')
 
@@ -27,8 +28,8 @@ class State {
   setState (NextState, ...args) {
     this.exit()
     this.exited = true
-    let ctx = this.ctx
-    let nextState = new NextState(ctx, ...args)
+    const ctx = this.ctx
+    const nextState = new NextState(ctx, ...args)
     ctx.state = nextState
     ctx.emit('StateEntering', ctx.state.constructor.name)
     ctx.state.enter()
@@ -41,20 +42,20 @@ class State {
   }
 
   bind (encrypted, callback) {
-    let err = new Error('invalid state')
+    const err = new Error('invalid state')
     err.code = 'EFORBIDDEN'
     process.nextTick(() => callback(err))
   }
 
   unbind (encrypted, callback) {
-    let err = new Error('invalid state')
+    const err = new Error('invalid state')
     err.code = 'EFORBIDDEN'
     process.nextTick(() => callback(err))
   }
 
   contextError (err) {
     debug('context error', err)
-    this.setState(Failed, err)    
+    this.setState(Failed, err)
   }
 }
 
@@ -62,7 +63,7 @@ class Idle extends State {
   bind (encrypted, callback) {
     debug('binding')
     if (!this.ctx.token) {
-      let err = new Error('no token')
+      const err = new Error('no token')
       err.code = 'EUNAVAIL'
       return process.nextTick(() => callback(err))
     } else {
@@ -72,7 +73,7 @@ class Idle extends State {
 
   unbind (encrypted, callback) {
     if (!this.ctx.token) {
-      let err = new Error('no token')
+      const err = new Error('no token')
       err.code = 'EUNAVAIL'
       return process.nextTick(() => callback(err))
     } else {
@@ -86,27 +87,27 @@ class Binding extends State {
     super(ctx)
     this.encrypted = encrypted
     this.callback = callback
-  } 
+  }
 
   enter () {
     reqBind(ecc, this.encrypted, this.ctx.token, (err, data) => {
       if (err) {
-        this.callback(err) 
+        this.callback(err)
       } else {
         debug('bind data', data)
         this.callback(null)
         this.ctx.channel.reconnect()
-      } 
+      }
       if (!this.exited) this.setState(Idle)
     })
   }
-} 
+}
 
 class Unbinding extends State {
   constructor (ctx, encrypted, callback) {
     super(ctx)
     this.encrypted = encrypted
-    this.callback = callback 
+    this.callback = callback
   }
 
   enter () {
@@ -135,12 +136,12 @@ class Ownership extends EventEmitter {
     super()
     this.filePath = opts.filePath
     this.tmpDir = opts.tmpDir
-    this.tmpFile = path.join(opts.tmpDir, uuid.v4()) 
+    this.tmpFile = path.join(opts.tmpDir, uuid.v4())
     this.channel = opts.channel
 
     this.channel.on('token', token => this.token = token)
     this.channel.on('ChannelConnected', msg => this.handleChannelConnected(msg))
-      // this.handleNext(this.handleChannelConnected.bind(this, msg)))
+    // TODO this.handleNext(this.handleChannelConnected.bind(this, msg)))
 
     this.ecc = opts.ecc
     this.state = new Idle(this)
@@ -151,15 +152,14 @@ class Ownership extends EventEmitter {
 
     fs.readFile(this.filePath, (err, data) => {
       if (err) return // including ENOENT
-      if (this.owner !== undefined) return  // useless if owner already set
+      if (this.owner !== undefined) return // useless if owner already set
       try {
-        this.cache = JSON.parse(data) 
+        this.cache = JSON.parse(data)
         debug('emitting cached owner', this.cache)
         this.emit('cache', this.cache)
       } catch (e) {
-        return
       }
-    }) 
+    })
   }
 
   // this function cannot be put into state, including base state
@@ -169,7 +169,7 @@ class Ownership extends EventEmitter {
   // this process should be synchronized (aka, one after another) to avoid race
   handleChannelConnected (msg) {
     debug(msg)
-    let err = new Error('bad owner message from channel')
+    const err = new Error('bad owner message from channel')
     if (!msg.info) return this.state.contextError(err)
 
     const { signature, raw } = msg.info
@@ -183,7 +183,7 @@ class Ownership extends EventEmitter {
     this.verify(signature, raw, (err, verified) => {
       if (err) return this.state.contextError(err)
       if (!verified) {
-        let err = new Error('owner not verified')
+        const err = new Error('owner not verified')
         return this.state.contextError(err)
       }
 
@@ -191,7 +191,7 @@ class Ownership extends EventEmitter {
       owner = owner ? { id: owner, username, phone } : null
 
       if (this.owner && owner && this.owner.id !== owner.id) {
-        let err = new Error('owner update not allowed')
+        const err = new Error('owner update not allowed')
         return this.state.contextError(err)
       }
 
@@ -221,7 +221,7 @@ class Ownership extends EventEmitter {
 
   saveOwner (callback) {
     // const { O_CREAT, O_WRONLY, O_TRUNC, O_DIRECT } = consts
-    // const flag = O_CREAT | O_WRONLY | O_TRUNC | O_DIRECT 
+    // const flag = O_CREAT | O_WRONLY | O_TRUNC | O_DIRECT
     fs.writeFile(this.tmpFile, JSON.stringify(this.owner), err => {
       if (err) return callback(err)
       fs.rename(this.tmpFile, this.filePath, err => {
@@ -246,12 +246,9 @@ class Ownership extends EventEmitter {
   }
 }
 
-const homeDir = path.join(config.volume.cloud, config.cloud.domain, config.cloud.id)
-
 module.exports = new Ownership({
-  filePath: path.join(homeDir, 'boundUser.json'),
-  tmpDir: config.volume.tmp,
+  filePath: path.join(device.homeDir, 'boundUser.json'),
+  tmpDir: device.tmpDir,
   channel,
   ecc
 })
-
