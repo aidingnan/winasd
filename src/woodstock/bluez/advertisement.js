@@ -13,6 +13,9 @@ class Advertisement extends DBusObject {
     this.le = new LEAdvertisement1(props)
     this.addInterface(this.le)
     this.listener = this.listen.bind(this)
+
+    // this.isRegisterd = false
+    this.isMounted = false
   }
 
   mounted () {
@@ -24,7 +27,8 @@ class Advertisement extends DBusObject {
   }
 
   register () {
-    // console.log('register advertisement')
+
+    // TODO maintaining a isRegisterd state
 
     this.dbus.driver.invoke({
       destination: 'org.bluez',
