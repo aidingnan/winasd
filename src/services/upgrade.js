@@ -2,7 +2,7 @@
  * @Author: JackYang
  * @Date: 2019-07-08 14:06:53  
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-07-30 14:38:32
+ * @Last Modified time: 2019-09-07 19:55:19
  * 
  */
 
@@ -244,6 +244,12 @@ class Upgrade extends event {
     if (version) version = version.slice(1).split('-')[0]
     current.version = version
     return { current, roots }
+  }
+
+  listLocal(callback) {
+    this.listLocalAsync()
+      .then(x => callback(null, x))
+      .catch(e => callback(e))
   }
 
   LIST(user, props, callback) {

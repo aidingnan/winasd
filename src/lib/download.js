@@ -54,7 +54,7 @@ class Checking extends State {
   enter() {
     mkdirp.sync(this.ctx.tmpDir)
     let dstName = this.ctx.version
-    this.ctx.ctx.LIST(null, null, (err, data) => {
+    this.ctx.ctx.listLocal((err, data) => {
       console.log('Download Checking', err, data)
       if (err) return this.setState('Failed', err)
       let rootfs = data.roots.find(x => x.version === dstName && !x.parent)
