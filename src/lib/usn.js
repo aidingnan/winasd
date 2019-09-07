@@ -2,7 +2,6 @@ const a = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'.split('')
 
 /* sn is a hex string (9 bytes/18 characters, 0123xxxxxxxxxxxxee) */
 module.exports = sn => {
-  if (!/^0123[0-9a-f]{12}ee$/.test(sn)) throw new Error('invalid')
   const L = []
   let n = parseInt(sn.slice(4, 16), 16)
   for (let i = 0; i < 7; i++) {
