@@ -114,9 +114,14 @@ class Sata extends EventEmitter {
       process.nextTick(() => callback(err))
     } else {
       this.busy = true
-      child.exec('mkfs.btrfs -f /dev/sda', err => err
-        ? this.checkStatus()
-        : child.exec('partprobe', () => this.checkStatus()))
+      child.exec('mkfs.btrfs -f /dev/sda', err => {
+        if (err) {
+          this.checkStatus()
+        } else {
+          child.exec('partprobe', () => this.checkStatus())
+        }
+        callback(err)
+      })
     }
   }
 }

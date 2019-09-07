@@ -1,11 +1,10 @@
 const debug = require('debug')('ws:ble-pp')
 
 const diskman = require('./components/diskman')
-const ownership = require('./components/ownership')
 const ble = require('./components/ble')
 const localAuth = require('./components/local-auth')
-const connectWifiAndBind = require('./actions/connect-wifi-and-bind')
-const connectWifi = require('./actions/connect-wifi')
+
+let ownership, connectWifi, connectWifiAndBind
 
 /**
 This is a mediator pattern.
@@ -32,23 +31,30 @@ diskman.on('status', status => {
   }
 })
 
-let oldBound = 0x00
-ownership.on('cache', cache => {
-  debug('owner cache', cache ? cache.id : null)
-  const newBound = cache ? 0x02 : 0x01
-  if (newBound !== oldBound) {
-    ble.updateBoundState(newBound)
-    oldBound = newBound
-  }
-})
+diskman.once('mounted', () => {
+  ownership = require('./components/ownership')
 
-ownership.on('owner', owner => {
-  debug('owner', owner ? owner.id : null)
-  const newBound = owner ? 0x02 : 0x01
-  if (newBound !== oldBound) {
-    ble.updateBoundState(newBound)
-    oldBound = newBound
-  }
+  let oldBound = 0x00
+  ownership.on('cache', cache => {
+    debug('owner cache', cache ? cache.id : null)
+    const newBound = cache ? 0x02 : 0x01
+    if (newBound !== oldBound) {
+      ble.updateBoundState(newBound)
+      oldBound = newBound
+    }
+  })
+
+  ownership.on('owner', owner => {
+    debug('owner', owner ? owner.id : null)
+    const newBound = owner ? 0x02 : 0x01
+    if (newBound !== oldBound) {
+      ble.updateBoundState(newBound)
+      oldBound = newBound
+    }
+  })
+
+  connectWifiAndBind = require('./actions/connect-wifi-and-bind')
+  connectWifi = require('./actions/connect-wifi')
 })
 
 ble.useAuth(localAuth.verify.bind(localAuth))
@@ -63,27 +69,27 @@ ble.on('disconnected', () => {
 ble.on('message', msg => {
   if (msg.charUUID === '60000003-0182-406c-9221-0a6680bd0943') {
     switch (msg.action) {
-      case 'req': 
+      case 'req':
         localAuth.request((err, data) => {
-          let packet = { seq: msg.seq }
+          const packet = { seq: msg.seq }
           if (err) {
             packet.error = err
           } else {
             packet.data = data
           }
           ble.send('60000002-0182-406c-9221-0a6680bd0943', packet)
-        }) 
+        })
         break
       case 'auth':
         localAuth.auth(msg.body, (err, data) => {
-          let packet = { seq: msg.seq }
+          const packet = { seq: msg.seq }
           if (err) {
             packet.error = err
           } else {
             packet.data = data
           }
           ble.send('60000002-0182-406c-9221-0a6680bd0943', packet)
-        }) 
+        })
         break
       default:
         break
@@ -91,8 +97,9 @@ ble.on('message', msg => {
   } else if (msg.charUUID === '70000003-0182-406c-9221-0a6680bd0943') {
     switch (msg.action) {
       case 'addAndActive':
+        // TODO
         connectWifi(msg.body.ssid, msg.body.pwd, (err, data) => {
-          let packet = { seq: msg.seq }  
+          const packet = { seq: msg.seq }
           if (err) {
             packet.error = err
           } else {
@@ -102,8 +109,9 @@ ble.on('message', msg => {
         })
         break
       case 'addAndActiveAndBound':
+        // TODO
         connectWifiAndBind(msg.body.ssid, msg.body.pwd, msg.body.encrypted, res => {
-          let packet = { seq: msg.seq }
+          const packet = { seq: msg.seq }
           if (res instanceof Error) {
             packet.error = res
           } else {
@@ -115,14 +123,17 @@ ble.on('message', msg => {
 
       // TODO enforce rules ???
       // this is triggered on checking stage
-      case 'format':         
+      case 'format':
         diskman.format(err => {
-          let packet = { seq: msg.seq } 
+          const packet = { seq: msg.seq }
           if (err) {
             packet.error = err
           } else {
-            packet.data = res
+            packet.data = null
           }
+
+          console.log('format reply', packet)
+
           ble.send('70000002-0182-406c-9221-0a6680bd0943', packet)
         })
         break
