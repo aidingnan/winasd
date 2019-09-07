@@ -4,21 +4,16 @@ const child = require('child_process')
 const EventEmitter = require('events')
 const consts = require('constants')
 
+const rimraf = require('rimraf')
 const uuid = require('uuid')
 const config = require('config')
 const debug = require('debug')('ws:owner')
 
 const ecc = require('../lib/atecc/atecc')
+const nexter = require('../lib/nexter')
 const device = require('./device')
 const channel = require('./channel')
 const { reqBind, reqUnbind, verify } = require('../lib/lifecycle')
-
-// TODO debug
-const nexter = () => {
-  const q = []
-  const run = () => q[0](() => (q.shift(), q.length && run()))
-  return bf => (q.push(bf), (q.length === 1) && run())
-}
 
 class State {
   constructor (ctx) {
@@ -131,6 +126,15 @@ class Failed extends State {
   }
 }
 
+/**
+ownership manages several trivial resources:
+  - owner cache
+  - display name
+  - clean network manager connection files when own is nullified
+
+all load method are called only once during initialization.
+all save/clean methods are nextified, see nexter 
+*/
 class Ownership extends EventEmitter {
   constructor (opts) {
     super()
@@ -147,8 +151,11 @@ class Ownership extends EventEmitter {
     this.state = new Idle(this)
     this.state.enter()
 
-    this.handleNext = nexter()
-    this.saveNext = nexter()
+    // handle message, save owner and save display name should be executed sequentially
+    // clean nm connection files could be run concurrently
+    this.handleMessageNext = nexter()
+    this.saveOwnerNext = nexter()
+    this.saveDisplayNameNext = nexter()
 
     fs.readFile(this.filePath, (err, data) => {
       if (err) return // including ENOENT
@@ -160,6 +167,15 @@ class Ownership extends EventEmitter {
       } catch (e) {
       }
     })
+
+    // init display name
+    this.displayNamePath = path.join(device.homeDir, 'display-name')
+    this.displayName = device.hostname
+    this.loadDisplayName()
+
+    // init rooted
+    this.rooted = false
+    this.isRooted((err, rooted) => !err && (this.rooted = rooted))
   }
 
   // this function cannot be put into state, including base state
@@ -169,6 +185,7 @@ class Ownership extends EventEmitter {
   // this process should be synchronized (aka, one after another) to avoid race
   handleChannelConnected (msg) {
     debug(msg)
+try {
     const err = new Error('bad owner message from channel')
     if (!msg.info) return this.state.contextError(err)
 
@@ -181,6 +198,7 @@ class Ownership extends EventEmitter {
     if (signature === null && msg.owner !== null) return this.state.contextError(err)
 
     this.verify(signature, raw, (err, verified) => {
+try {
       if (err) return this.state.contextError(err)
       if (!verified) {
         const err = new Error('owner not verified')
@@ -196,11 +214,21 @@ class Ownership extends EventEmitter {
       }
 
       this.owner = owner
-      this.saveNext(this.saveOwner.bind(this))
+      this.saveOwnerNext(this.saveOwner.bind(this))
+      if (owner === null) {
+        this.setDisplayName(null)
+        this.cleanNmConnections()
+      }
 
       debug('emitting cloud owner', owner)
       this.emit('owner', owner)
+} catch (e) {
+  console.log(e)
+}
     })
+} catch (e) {
+  console.log(e)
+}
   }
 
   // wrapper to eliminate fulfilled and bypass null sig
@@ -243,6 +271,91 @@ class Ownership extends EventEmitter {
 
   unbind (encrypted, callback) {
     this.state.unbind(encrypted, callback)
+  }
+
+  loadDisplayName () {
+    fs.readFile(this.displayNamePath, (err, data) => {
+      if (!err) {
+        const name = data.toString()
+        if (name.length) this.displayName = name
+      }
+    }) 
+  }
+
+  // this function is called by setDisplayName only
+  saveDisplayName (name, callback) {
+    if (typeof name === 'string' && name.length) {
+      fs.writeFile(this.displayNamePath, name, () => callback) 
+    } else {
+      rimraf(this.displayNamePath, () => callback())
+    }
+  }
+
+  setDisplayName (name) {
+    if (typeof name == 'string' && name.length) {
+      this.displayName = name
+      this.saveDisplayNameNext(this.saveDisplayName.bind(this, name))
+    } else {
+      this.displayName = device.hostname
+      this.saveDisplayNameNext(this.saveDisplayName.bind(this, null))
+    }
+  }
+
+  isRooted (callback) {
+    child.exec('rockbian is-rooted', (err, stdout) => {
+      if (err) {
+        callback(err)
+      } else {
+        if (stdout.toString().trim() === 'true') {
+          callback(null, true)
+        } else if (stdout.toString().trim() === 'false') {
+          callback(null, false)
+        } else {
+          const err = new Erro('bad data')
+          callback(err)
+        }
+      }
+    })
+  }
+
+  root (callback) {
+    child.exec('rockbian root', err => {
+      if (err) {
+        callback(err)
+      } else {
+        this.rooted = true
+        callback(null)
+      }
+    })
+  }
+
+  unroot (callback) {
+    child.exec('rockbian unroot', err => {
+      if (err) {
+        callback(err)
+      } else {
+        this.rooted = false
+        callback(null)
+      }
+    })
+  }
+
+  // /etc/NetworkManager/system-connections
+  // usb0.nmconnection 
+  cleanNmConnections (callback = () => {}) {
+    const nmDir = '/etc/NetworkManager/system-connections'
+    const reserved = ['usb0.nmconnection']
+    fs.readdir(nmDir, (err, entries) => {
+      if (err) {
+        callback(err)
+      } else {
+        entries
+          .filter(name => name.endsWith('.nmconnection'))
+          .filter(name => !reserved.includes(name))
+          .forEach(name => rimraf(path.join(nmDir, name), () => {}))
+        callback(null)
+      }
+    })
   }
 }
 
