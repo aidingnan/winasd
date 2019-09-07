@@ -2,6 +2,7 @@
 const path = require('path')
 process.chdir(path.dirname(__dirname))
 
+const ble = require('./components/ble')
 const device = require('./components/device')
 device.once('ready', () => {
   require('./ble-app')

@@ -19,6 +19,8 @@ class Advertisement extends DBusObject {
     super.mounted()
     this.dbus.listen({ sender: 'org.bluez', path: '/org/bluez' }, this.listener)
     this.register()
+
+    this.isMounted = true
   }
 
   register () {
@@ -34,6 +36,9 @@ class Advertisement extends DBusObject {
         new OBJECT_PATH(this.objectPath()),
       ]
     }, (err, data) => {
+
+      err && console.log('ble failed unregistering adv', err.message)
+
       this.dbus.driver.invoke({
         destination: 'org.bluez',
         path: '/org/bluez/hci0',
@@ -45,7 +50,9 @@ class Advertisement extends DBusObject {
           new ARRAY('a{sv}')
         ]
       }, err => {
-        if (err) console.log('error registering ble advertisement', err.message)
+
+        err && console.log('ble failed registering adv', err.message)
+
       })
     })
   }
@@ -55,7 +62,7 @@ class Advertisement extends DBusObject {
     this.removeInterface(this.le)
     this.le = le
     this.addInterface(this.le)
-    this.register()
+    if (this.isMounted) this.register()
   }
 
   listen (m) {
