@@ -266,7 +266,11 @@ class Winas extends EventEmitter {
   handlePipeMessage (msg) {
     if (msg.urlPath && !msg.urlPath.startsWith('/winasd')) {
       // if starting or restarting , buffer the msg
-      this.send(msg)
+
+      console.log('winas handle message:', msg)
+
+      // this.send(msg)
+      this.send({ type: 'pipe', data: msg })
     }
   }
 

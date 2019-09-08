@@ -214,6 +214,8 @@ class Ownership extends EventEmitter {
             return this.state.contextError(err)
           }
 
+          console.log('owner module:', owner)
+
           this.owner = owner
           this.saveOwnerNext(this.saveOwner.bind(this))
           if (owner === null) {

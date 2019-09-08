@@ -115,7 +115,7 @@ ble.on('message', msg => {
           if (res instanceof Error) {
             packet.error = res
           } else {
-            packet.data = res
+            Object.assign(packet, res)
           }
           ble.send('70000002-0182-406c-9221-0a6680bd0943', packet)
         })

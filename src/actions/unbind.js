@@ -11,7 +11,7 @@ module.exports = (encrypted, clean, callback) => {
     if (err) {
       callback(err)
     } else {
-      if (!clean) return callback(null)
+      if (!clean) return callback(null, {})
 
       const polling = setInterval(() => {
         if (ownership.owner === null && winas.getState() === 'Stopped') {

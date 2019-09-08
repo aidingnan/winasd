@@ -1,4 +1,4 @@
-const request = require('superagent')
+const request = require('request')
 const config = require('config')
 const debug = require('debug')('responder')
 
@@ -11,6 +11,8 @@ const upgrade = require('./upgrade')
 /**
 responder responds to cloud message, on behalf of winasd
 */
+
+let token
 
 const getURL = (stationId, jobId) =>
   `${config.pipe.baseURL}/s/v1/station/${stationId}/response/${jobId}`
@@ -36,14 +38,19 @@ const reply = (msg, error, res, isFetch, isStore) => {
   }
 
   let uri = getURL(this.sn, msg.sessionId, false)
-  if (isFetch) uri += '/pipe/fetch'
-  else if (isStore) uri += '/pipe/store'
-  else uri += '/json'
+  if (isFetch) {
+    uri += '/pipe/fetch'
+  } else if (isStore) {
+    uri += '/pipe/store'
+  } else {
+    uri += '/json'
+  }
+
   return request({
     uri: uri,
     method: 'POST',
     headers: {
-      Authorization: this.ctx.token,
+      Authorization: token,
       Cookie: msg.headers['cookie']
     },
     body: true,
@@ -53,7 +60,7 @@ const reply = (msg, error, res, isFetch, isStore) => {
     }
   }, (error, response, body) => {
     if (error) {
-      debug('replay error: ', error)
+      debug('reply error: ', error)
     } else {
       debug('reply success:', response.statusCode)
     }
@@ -61,6 +68,9 @@ const reply = (msg, error, res, isFetch, isStore) => {
 }
 
 const handleMessage = msg => {
+
+  debug(msg) 
+
   const { urlPath, verb, user } = msg
   const owner = ownership.owner
   const body = Object.assign({}, msg.body, msg.params)
@@ -113,7 +123,11 @@ const handleMessage = msg => {
 
   // retrieve usable checkout list
   } else if (urlPath === '/winasd/upgrade' && verb === 'GET') {
+
+    console.log('respond to /winasd/upgrade')
+
     upgrade.listLocal((err, list) => {
+      console.log('listLocal', err, list)
       if (err) {
         reply(msg, err, { status: 500 })
       } else {
@@ -135,3 +149,6 @@ It is possible that owner message does not arrived when pipe message arrived,
 since ownership processes owner asynchronously.
 */
 channel.on('pipe', handleMessage)
+channel.on('token', tok => {
+  token = tok
+})
