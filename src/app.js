@@ -4,6 +4,7 @@ process.chdir(path.dirname(__dirname))
 
 const ble = require('./components/ble')
 const device = require('./components/device')
+const led = require('./components/led')
 
 device.once('ready', () => {
   require('./ble-app')
@@ -14,8 +15,4 @@ device.once('ready', () => {
     require('./components/responder')
   })
 })
-
-device.on('error', () => {
-})
-
 

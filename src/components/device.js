@@ -28,6 +28,12 @@ class Device extends EventEmitter {
     this.homeDir = ''
     this.tmpDir = config.volume.tmp
 
+    this.on('ready', () => { this.ready = true })
+    this.on('error', err => { this.error = err })
+    this.on('shutdown', () => { 
+      this.shuttingDown = true 
+    })
+
     let count = 4
     ecc.serialNumber({}, (err, data) => {
       if (err) return this.emit('error', err)

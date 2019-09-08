@@ -40,6 +40,14 @@ class BLE extends EventEmitter {
     // set by external module (ble-app, supposedly)
     this.verify = null
 
+    this.on('connected', () => {
+      this.isConnected = true
+    })
+
+    this.on('disconnected', () => {
+      this.isConnected = false
+    })
+
     // updated when device connected / disconnected
     // this.connected = false
 

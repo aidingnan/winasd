@@ -1,9 +1,9 @@
 const crypto = require('crypto')
-
+const EventEmitter = require('events')
 const deepEqual = require('fast-deep-equal')
 // const debug = require('debug')('ws:auth')
 
-const led = require('./led')
+// const led = require('./led')
 
 const KEYS = 'abcdefg12345678'.split('')
 const RandomKey = () => KEYS.map(x => KEYS[Math.round(Math.random() * 14)]).join('')
@@ -27,8 +27,9 @@ if (useFixedToken) console.log('local auth accepts fixed token:', fixedToken)
  * Hardware Auth
  * Using Led color or touch-button to check is it owner operation
  */
-class LocalAuth {
+class LocalAuth extends EventEmitter {
   constructor (ctx) {
+    super()
     this._state = 'Idle' // 'Workding'
     this.timer = undefined // working timer
     this.secret = RandomKey()
@@ -49,7 +50,7 @@ class LocalAuth {
     if (this.state === 'Idle') {
       const args = CreateArgs()
       try {
-        led.run(args[0], args[1], 60 * 1000) // start led
+        this.emit('startcc', args)
         this.args = args
         console.log('LocalAuth ==> ', args)
         this.state = 'Working'
@@ -68,9 +69,8 @@ class LocalAuth {
   stop () {
     if (this.state === 'Idle') return
     clearTimeout(this.timer)
-    // led.runGroup(this.ctx.colorGroup())
-    led.runGroup(led.colorGroup())
     this.state = 'Idle'
+    this.emit('stopcc')
   }
 
   // check auth result
