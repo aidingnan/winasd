@@ -15,6 +15,7 @@ const connect = (ssid, password, callback) =>
       const err = new Error(strip(stderr).toString().trim())
       callback(err)
     } else {
+      child.exec('sync', () => {})
       callback(null)
     }
   })

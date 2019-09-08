@@ -1,3 +1,5 @@
+const child = require('child_process')
+
 const debug = require('debug')('ws:ble-pp')
 
 const diskman = require('./components/diskman')
@@ -70,6 +72,7 @@ ble.on('message', msg => {
   if (msg.charUUID === '60000003-0182-406c-9221-0a6680bd0943') {
     switch (msg.action) {
       case 'req':
+        child.exec('nmcli d wifi list', () => {})
         localAuth.request((err, data) => {
           const packet = { seq: msg.seq }
           if (err) {
