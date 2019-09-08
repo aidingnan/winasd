@@ -20,6 +20,7 @@ class Sata extends EventEmitter {
   constructor () {
     super()
     this.status = 0x00
+    this.mounted = false
     this.busy = true
     this.checkStatus()
   }
@@ -74,6 +75,8 @@ class Sata extends EventEmitter {
     process.nextTick(() => this.emit('status', status))
     if (this.status === 0x80) {
       this.swapon()
+
+      this.mounted = true
       process.nextTick(() => this.emit('mounted', this.mountpoint))
     }
   }
