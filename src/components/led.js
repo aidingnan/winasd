@@ -109,6 +109,7 @@ const ledEncode = (mode, colors, shots) => {
 }
 
 const ledWriteAsync = async arr => {
+  // debug('ledwrite', arr.map(([k,v]) => `${k}/${v}`).join(', '))
   for (let i = 0; i < arr.length; i++) {
     const [addr, val] = arr[i]
     await new Promise((resolve, reject) => {
@@ -124,37 +125,47 @@ const ledWrite = (arr, callback) =>
   ledWriteAsync(arr)
     .then(() => callback())
     .catch(e => {
-      console.log('callback', typeof callback, callback)
+      console.log(e)
       callback(e)
     })
 
 let running = {}
 
-const update = (mode, colors, shots) => {
-  console.log('led update:', mode, colors, shots)
+const update = (mode, colors, shots, force) => {
+  debug('update:', mode, colors, shots)
   const o = { mode, colors, shots }
   if (JSON.stringify(running) === JSON.stringify(o)) return
   running = o
-  next(ledWrite.bind(undefined, ledEncode(mode, colors, shots)))
+  const codes = ledEncode(mode, colors, shots)
+  next(ledWrite.bind(undefined, codes))
 }
 
-const refresh = () => {
+const forceUpdate = (mode, colors, shots) => {
+  debug('force update:', mode, colors, shots)
+  const o = { mode, colors, shots }
+  running = o
+  const codes = ledEncode(mode, colors, shots)
+  next(ledWrite.bind(undefined, codes))
+}
+
+const refresh = force => {
+  const f = force ? forceUpdate : update 
   if (device.shuttingDown) {
-    update('breathing', ['green'])
+    f('breathing', ['green'])
   } else if (device.error) {
-    update('blink', ['red'])
+    f('blink', ['red'])
   } else if (!device.ready) {
-    update('breathing', ['green'])
+    f('breathing', ['green'])
   } else if (!diskman.mounted) {
-    if (diskman.status !== 0x00) update('blink', ['red'])
+    if (diskman.status !== 0x00) f('blink', ['red'])
   } else { // device ready and disk OK
     if (ownership.getOwner()) { // greenish
-      update('on', ['green'])
+      f('on', ['green'])
     } else { // blue
       if (ble.isConnected) {
-        update('on', ['blue'])
+        f('on', ['blue'])
       } else {
-        update('blink', ['blue'])
+        f('blink', ['blue'])
       }
     }
   }
@@ -175,6 +186,9 @@ device.on('ready', () => {
 })
 
 auth.on('startcc', cc => {
+
+  debug('startcc', cc)
+
   const [c, m] = cc
   let mode, color
 
@@ -185,16 +199,25 @@ auth.on('startcc', cc => {
 
   if (m === 'breath') mode = 'blink' 
   else mode = 'on'
-  
+
+  // low level write, don't update running  
   next(ledWrite.bind(undefined, ledEncode(mode, [color])))
 })
 
-auth.on('stopcc', () => refresh())
+auth.on('stopcc', () => {
+  debug('stopcc')
+  refresh(true)
+})
 
-ble.on('connected', () => refresh())
-ble.on('disconnected', () => refresh())
+ble.on('connected', () => {
+  debug('bluetooth connected')
+  refresh()
+})
+
+ble.on('disconnected', () => {
+  debug('bluetooth disconnected')
+  refresh()
+})
 
 next(ledWrite.bind(undefined, ledInit))
 update('breathing', ['green'])
-
-
