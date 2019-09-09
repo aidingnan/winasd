@@ -191,7 +191,7 @@ class Connected extends Base {
     if (++this.counter > 3) {
       return this.setState('Failed', new Error('token refresh timeout 3 times over 90 seconds'))
     }
-    this.publish(`device/${deviceSN}/token`, '') // refresh token
+    this.connection.publish(`device/${deviceSN}/token`, '') // refresh token
     this.waitTimer = setTimeout(() => { // refresh timeout
       this.refreshToken()
     }, 30 * 1000)
