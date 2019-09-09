@@ -104,7 +104,7 @@ ble.on('message', msg => {
         connectWifi(msg.body.ssid, msg.body.pwd, (err, data) => {
           const packet = { seq: msg.seq }
           if (err) {
-            packet.error = err
+            packet.error = { code: err.code, message: err.message }
           } else {
             packet.data = data
           }
@@ -116,7 +116,7 @@ ble.on('message', msg => {
         connectWifiAndBind(msg.body.ssid, msg.body.pwd, msg.body.encrypted, res => {
           const packet = { seq: msg.seq }
           if (res instanceof Error) {
-            packet.error = res
+            packet.error = { code: res.code, message: res.message }
           } else {
             Object.assign(packet, res)
           }
@@ -130,7 +130,7 @@ ble.on('message', msg => {
         diskman.format(err => {
           const packet = { seq: msg.seq }
           if (err) {
-            packet.error = err
+            packet.error = { code: err.code, message: err.message }
           } else {
             packet.data = null
           }

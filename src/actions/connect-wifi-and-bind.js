@@ -20,7 +20,7 @@ module.exports = (ssid, password, encrypted, respond) =>
         const err = new Error('cloud not connected in 60 seconds')
         err.code = 'ETIMEOUT'
         respond(err)
-      }), 20 * 1000)
+      }), 60 * 1000)
       ownership.on('owner', r(owner => {
         if (owner) {
           const err = new Error('owner exists')
