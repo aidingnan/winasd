@@ -116,7 +116,7 @@ const handleMessage = msg => {
       }
     })
 
-  // update device name
+  // update device name TODO validation
   } else if (urlPath === '/winasd/device') {
     ownership.setDisplayName(body.name)
     return reply(msg, null, {})

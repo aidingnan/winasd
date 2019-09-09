@@ -60,6 +60,13 @@ router.get('/upgrade', (req, res) =>
 
 // update device name
 router.post('/device', (req, res, next) => {
+  let { name } = req.body 
+  if (typeof name !== 'string' || !name.length) {
+    res.status(400).end()
+  } else {
+    ownership.setDisplayName(name)  
+    res.status(200).end()
+  }
 })
 
 // request
