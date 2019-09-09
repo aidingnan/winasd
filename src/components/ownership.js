@@ -220,7 +220,8 @@ class Ownership extends EventEmitter {
           this.saveOwnerNext(this.saveOwner.bind(this))
           if (owner === null) {
             this.setDisplayName(null)
-            this.cleanNmConnections()
+            // disable temporarily
+            // this.cleanNmConnections()
           }
 
           debug('emitting cloud owner', owner)
