@@ -2,7 +2,7 @@
  * @Author: JackYang
  * @Date: 2019-07-08 14:06:53
  * @Last Modified by: JackYang
- * @Last Modified time: 2019-09-06 16:07:16
+ * @Last Modified time: 2019-09-09 22:51:43
  *
  */
 
@@ -38,6 +38,7 @@ class Upgrade extends event {
     this.currentVersion = SoftwareVersion()
     channel.on('checkout', this.handleCheckoutMessage.bind(this))
     channel.on('download', this.handleDownloadMessage.bind(this))
+    channel.on('ChannelConnected', this.handleChannelConnected.bind(this))
   }
 
   get downloader () {
@@ -53,6 +54,10 @@ class Upgrade extends event {
     if (!value) return
     this._downloader.on('Finished', () => {})
     this._downloader.on('Failed', () => {})
+  }
+
+  handleChannelConnected () {
+    child.exec('cowroot-confirm', () => {})
   }
 
   handleDownloadMessage (data) {
