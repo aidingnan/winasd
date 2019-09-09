@@ -109,6 +109,10 @@ class Wrapper extends EventEmitter {
   incCounter (opts, callback) {
     this.run(Object.assign({ op: 'incCounter' }, opts), callback)
   }
+
+  piggyWrite (opts, callback) {
+    this.run(Object.assign({ op: 'piggyWrite' }, opts), callback)
+  }
 }
 
 /**

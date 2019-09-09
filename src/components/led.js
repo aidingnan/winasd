@@ -5,6 +5,8 @@ const debug = require('debug')('ws:led')
 
 const next = require('../lib/nexter')()
 
+const ecc = require('../lib/atecc/atecc')
+
 const device = require('./device')
 const ble = require('./ble')
 const auth = require('./local-auth')
@@ -121,6 +123,10 @@ const ledWriteAsync = async arr => {
   }
 }
 
+/**
+
+This is the extremely slow version, using i2cset command, one by one
+
 const ledWrite = (arr, callback) =>
   ledWriteAsync(arr)
     .then(() => callback())
@@ -128,6 +134,9 @@ const ledWrite = (arr, callback) =>
       console.log(e)
       callback(e)
     })
+*/
+
+const ledWrite = (arr, callback) => ecc.piggyWrite({ codes: arr }, callback)
 
 let running = {}
 

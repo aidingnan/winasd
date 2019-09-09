@@ -30,6 +30,11 @@ class ECC {
   scan (callback) {
     this.bus.scan(0x00, 0x7f, (err, addrs) => {
       if (err) return callback(err)
+
+      if (addrs.includes(0x64)) {
+        this.piggyAddr = 0x64   // aw2015fcr
+      }
+
       if (addrs.includes(0xC0 >> 1)) {
         this.addr = 0xC0
         callback(null)
@@ -325,6 +330,21 @@ class ECC {
 
   incCounter(opts, callback) {
     this.counter('incr', 0, callback)
+  }
+
+  async piggyWriteAsync (arr) {
+    if (!this.piggyAddr) return
+
+    for (let i = 0; i < arr.length; i++) {
+      await new Promise((resolve, reject) =>
+        this.bus.i2cWrite(this.piggyAddr, 2, Buffer.from(arr[i]), () => resolve(null)))
+    }
+  }
+
+  piggyWrite(opts, callback) {
+    this.piggyWriteAsync(opts.codes)
+      .then(() => callback(null))
+      .catch(e => callback(e))
   }
 }
 
