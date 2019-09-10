@@ -30,15 +30,13 @@ const connect = (ssid, password, callback) => {
       // sync file system
       child.exec('sync', () => {})
       callback(null, {
-        data: {
-          sn: device.sn,
-          // TODO who is going to maintain this?
-          addr: ((
-            wlan0 = os.networkInterfaces().wlan0,
-            ip = wlan0 && wlan0.find(x => x.family === 'IPv4'),
-            addr = ip ? ip.address : '0.0.0.0'
-          ) => addr)()
-        }
+        sn: device.sn,
+        // TODO who is going to maintain this?
+        addr: ((
+          wlan0 = os.networkInterfaces().wlan0,
+          ip = wlan0 && wlan0.find(x => x.family === 'IPv4'),
+          addr = ip ? ip.address : '0.0.0.0'
+        ) => addr)()
       })
     }
   })
