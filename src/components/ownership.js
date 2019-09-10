@@ -299,6 +299,9 @@ class Ownership extends EventEmitter {
     if (typeof name === 'string' && name.length) {
       this.displayName = name
       this.saveDisplayNameNext(this.saveDisplayName.bind(this, name))
+      if (this.owner) {
+        setTimeout(() => this.channel.reconnect(), 2 * 1000)
+      }
     } else {
       this.displayName = device.hostname
       this.saveDisplayNameNext(this.saveDisplayName.bind(this, null))
