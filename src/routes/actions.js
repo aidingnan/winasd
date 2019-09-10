@@ -112,7 +112,7 @@ router.post('/unbind', (req, res, next) => {
   })
 })
 
-router.post('/timedate', (req, res) => {
+router.get('/timedate', (req, res) => {
   timedate(req.body, (err, data) => {
     if (err) {
       const { code, message } = err
