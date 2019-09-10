@@ -37,7 +37,7 @@ const connect = (ssid, password, callback) => {
         const { address, netmask, mac, cidr } = ip
         data = { address, netmask, mac, prefix: cidr.split('/')[1] }
       }
-      callback(null, { data })
+      callback(null, data)
     }
   })
 }
