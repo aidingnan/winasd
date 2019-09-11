@@ -293,18 +293,14 @@ class Ownership extends EventEmitter {
     const interfaces = os.networkInterfaces()
     const usb0iface = interfaces.usb0 && interfaces.usb0.find(x => x.family === 'IPv4')
     const wlan0iface = interfaces.wlan0 && interfaces.wlan0.find(x => x.family === 'IPv4')
-    console.log({
+    const info = {
       lanIp: (wlan0iface && wlan0iface.address) || '0.0.0.0',
       llIp: (usb0iface && usb0iface.address) || '169.254.0.0',
       version: device.version,
       name: this.displayName
-    })
-    channel.send(`device/${device.sn}/info`, JSON.stringify({
-      lanIp: (wlan0iface && wlan0iface.address) || '0.0.0.0',
-      llIp: (usb0iface && usb0iface.address) || '0.0.0.0',
-      version: device.version,
-      name: this.displayName
-    }))
+    }
+    console.log(info)
+    channel.send(`device/${device.sn}/info`, JSON.stringify(info))
   }
 
   // this function is called by setDisplayName only
