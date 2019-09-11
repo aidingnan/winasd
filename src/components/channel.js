@@ -28,7 +28,7 @@ class Base extends State {
 
   reconnect () {}
 
-  send (topic, data, opts, callback) {
+  send (topic, data, opts, callback = () => {}) {
     process.nextTick(() =>
       callback(Object.assign(new Error('can not send in current state: ' + this.name), { code: 'ESTATE' })))
   }
@@ -125,12 +125,6 @@ class Connecting extends Base {
 
     conn.on('connect', () => {
       conn.subscribe(`cloud/${deviceSN}/connected`)
-      conn.publish(`device/${deviceSN}/info`, JSON.stringify({
-        lanIp: NetworkAddr('lanip'),
-        llIp: NetworkAddr('linklocal'),
-        version: SoftwareVersion(),
-        name: deviceName()
-      }))
     })
     conn.on('error', cb)
     conn.on('message', (topic, payload) => {

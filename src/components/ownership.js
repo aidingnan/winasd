@@ -2,6 +2,7 @@ const path = require('path')
 const fs = require('fs')
 const child = require('child_process')
 const EventEmitter = require('events')
+const os = require('os')
 // const consts = require('constants')
 
 const rimraf = require('rimraf')
@@ -233,6 +234,8 @@ class Ownership extends EventEmitter {
     } catch (e) {
       console.log(e)
     }
+    // publish device info
+    this.publishDeviceInfo()
   }
 
   // wrapper to eliminate fulfilled and bypass null sig
@@ -286,6 +289,24 @@ class Ownership extends EventEmitter {
     })
   }
 
+  publishDeviceInfo () {
+    const interfaces = os.networkInterfaces()
+    const usb0iface = interfaces.usb0 && interfaces.usb0.find(x => x.family === 'IPv4')
+    const wlan0iface = interfaces.wlan0 && interfaces.wlan0.find(x => x.family === 'IPv4')
+    console.log({
+      lanIp: (wlan0iface && wlan0iface.address) || '0.0.0.0',
+      llIp: (usb0iface && usb0iface.address) || '169.254.0.0',
+      version: device.version,
+      name: this.displayName
+    })
+    channel.send(`device/${device.sn}/info`, JSON.stringify({
+      lanIp: (wlan0iface && wlan0iface.address) || '0.0.0.0',
+      llIp: (usb0iface && usb0iface.address) || '0.0.0.0',
+      version: device.version,
+      name: this.displayName
+    }))
+  }
+
   // this function is called by setDisplayName only
   saveDisplayName (name, callback) {
     if (typeof name === 'string' && name.length) {
@@ -299,13 +320,12 @@ class Ownership extends EventEmitter {
     if (typeof name === 'string' && name.length) {
       this.displayName = name
       this.saveDisplayNameNext(this.saveDisplayName.bind(this, name))
-      if (this.owner) {
-        setTimeout(() => this.channel.reconnect(), 2 * 1000)
-      }
     } else {
       this.displayName = device.hostname
       this.saveDisplayNameNext(this.saveDisplayName.bind(this, null))
     }
+    // publish device info
+    this.publishDeviceInfo()
   }
 
   isRooted (callback) {
