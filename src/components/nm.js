@@ -33,6 +33,7 @@ class NetWorkManager extends require('events') {
     this._nm = x
     if (!x) return
     x.on('NM_DeviceChanged', (...args) => this.emit('NM_DeviceChanged', ...args))
+    x.on('NM_DeviceInitialized', () => this.initState())
     x.on('NM_StateChanged', (...args) => {
       this.emit('NM_StateChanged', ...args)
       this.handleStateChanged(...args)

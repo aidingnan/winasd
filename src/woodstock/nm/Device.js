@@ -29,14 +29,19 @@ class Device {
   constructor(ctx) {
     this.ctx = ctx
     this.handleFunc = this.handleSignals.bind(this)
+    this.initialed = false
     Object.defineProperty(this, 'devices', {
-      get(){
+      get () {
         return this._devices || []
       },
-      set(v) {
+      set (v) {
         this.devices.forEach(x => this.ctx.removeSignalHandle(x.objPath, this.handleFunc))
         this._devices = v
         v.forEach(x => this.ctx.addSignalHandle(x.objPath, this.handleFunc))
+        if (!this.initialed) {
+          this.initialed = true
+          this.ctx.emit('NM_DeviceInitialized')
+        }
       }
     })
     this.jobs = []
