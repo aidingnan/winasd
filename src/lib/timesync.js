@@ -58,6 +58,11 @@ class TimeSync extends EventEmitter {
     this.timesync.kill()
     this.timesync = null
   }
+
+  refresh () {
+    if (!this.timesync) return
+    child.exec('systemctl restart systemd-timesync.service', () => {})
+  }
 }
 
 module.exports = TimeSync
