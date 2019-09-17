@@ -1,47 +1,42 @@
 const EventEmitter = require('events')
 const child = require('child_process')
 
-const debug = require('debug')('wd:ping')
+const validator = require('validator')
 
 class Ping extends EventEmitter {
-  constructor (ip) {
+  constructor (target) {
     super()
+
+    if (!validator.isFQDN(target) && !validator.isIP(target, 4))
+      throw new Error('invalid target, neither FQDN nor IPv4')
+
     this.destroyed = false
 
-    this.ip = ip
+    this.target = target
+    this.isFQDN = validator.isFQDN(target)
+    if (this.isFQDN) this.resolved = false
     this.reachable = 0
-
     this.timer = undefined
 
     this.ping()
   }
 
   ping () {
-    child.exec(`ping -c 2 -q ${this.ip}`, (err, stdout) => {
+    // ping exit 1 if not received anything
+    child.exec(`ping -c 3 -q -W 8 ${this.target}`, (err, stdout) => {
       if (this.destroyed) return
       if (err) {
-        if (this.reachable) console.log(`error ping ${this.ip}: ${err.message}`)
+        if (this.isFQDN) {
+          if (stdout.toString().includes('Name or service not known')) {
+            this.resolved = false
+          } else {
+            this.resolved = true
+          }
+        }
         this.decr()
       } else {
-        const sline = stdout.toString().split('\n').find(l => l.includes('received'))
-        if (!sline) {
-          console.log(`ping returns no stats line`)
-          this.decr()
-        } else {
-          const r = sline
-            .split(',')
-            .reduce((o, phr) => {
-              if (phr.endsWith('transmitted')) {
-                o.transmitted = parseInt(phr.trim().split(' ')[0])
-              } else if (phr.endsWith('received')) {
-                o.received = parseInt(phr.trim().split(' ')[0])
-              }
-              return o
-            }, {})
-
-          debug(this.ip, this.reachable, r)
-          r.received ? this.incr () : this.decr()
-        }
+        if (this.isFQDN) this.resolved = true
+        this.incr()
       }
     })
   }
@@ -49,7 +44,7 @@ class Ping extends EventEmitter {
   decr () {
     const prev = this.reachable
     this.reachable = Math.floor(this.reachable / 2) 
-    this.timer = setTimeout(() => this.ping(), 2 * 1000)
+    this.timer = setTimeout(() => this.ping(), 16 * 1000)
     if (prev && !this.reachable) this.emit('down')
   }
 
@@ -66,6 +61,7 @@ class Ping extends EventEmitter {
   }
 
   refresh () {
+    if (this.destroyed) return
     clearTimeout(this.timer)
     this.ping()
   }
