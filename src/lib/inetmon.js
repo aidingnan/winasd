@@ -10,9 +10,14 @@ const Ping = require('./ping')
 const routen = require('./routen')
 
 /**
-This class monitors wlan0 interface
-1. retrieve ip, netmask, gateway, and dns
-2. 
+INetMon object monitors inet settings on given nic (gateway),
+including gateway and dns.
+
+This object emits 'online' event with a boolean value.
+It also has a 'online' prop for synchronous checking.
+
+refreshable.
+destroyable.
 */
 class INetMon extends EventEmitter {
   constructor (iface) {
@@ -30,11 +35,9 @@ class INetMon extends EventEmitter {
     this.error = null
     this.timer = undefined
 
-    this.epName = config.iot.endpoint
-    this.ecName = config.cloud.domain + '.aidingnan.com'
-    this.ep = null
-    this.ec = null
+    this.online = false
 
+    this.probing = false
     this.probe()
   }
 
@@ -76,32 +79,34 @@ class INetMon extends EventEmitter {
     if (!ip) return
 
     this[prop] = new Ping(ip)
-    this[prop].on('state', state => this.handleStateChange(prop, state))
+    this[prop].on('reachable', reachable => this.handleReachable(prop, reachable))
   }
 
-  handleStateChange (prop, state) {
+  isOnline () {
+    const gateway = !!(this.gateway && this.gateway.reachable)
+    const dns1 = !!(this.dns1 && this.dns1.reachable) 
+    const dns2 = !!(this.dns2 && this.dns2.reachable)
+    return gateway && (dns1 || dns2)
+  }
 
-    debug(prop, this[prop].target, state)
+  handleReachable (prop, reachable) {
+    if (this.destroyed) return
 
-    if (this.gateway && this.gateway.reachable &&
-      ((this.dns1 && this.dns1.reachable) || (this.dns2 && this.dns2.reachable))) {
-      if (!this.ep) {
-        this.ep = new Ping(this.epName) 
-        this.ep.on('state', state => this.handleStateChange('ep', state))
-      } 
+    debug(prop, this[prop].target, reachable)
 
-      if (!this.ec) {
-        this.ec = new Ping(this.ecName)
-        this.ec.on('state', state => this.handleStateChange('ec', state))
-      }
-    } else {
-      this.destroyProp('ep')
-      this.destroyProp('ec')
+    if (this.online && !this.isOnline()) {
+      this.online = false
+      this.emit('online', false)
+    } else if (!this.online && this.isOnline()) {
+      this.online = true
+      this.emit('online', true)
     }
   }
 
   probe () {
+    this.probing = true
     this.inetInfo((err, info) => {
+      this.probing = false
       if (this.destroyed) return
       if (err || !info) {
         this.ip = ''
@@ -109,8 +114,6 @@ class INetMon extends EventEmitter {
         this.destroyProp('gateway')
         this.destroyProp('dns1')
         this.destroyProp('dns2')
-        this.destroyProp('ep')
-        this.destroyProp('ec')
       } else {
         const { ip, netmask, gateway, dns } = info
         this.ip = ip
@@ -127,6 +130,23 @@ class INetMon extends EventEmitter {
 
       this.timer = setTimeout(() => this.probe(), 60 * 1000)
     })
+  }
+
+  destroy () {
+    if (this.destroyed) return
+    this.ip = ''
+    this.netmask = ''
+    this.destroyProp('gateway')
+    this.destroyProp('dns1')
+    this.destroyProp('dns2')
+    this.destroyed = true
+  }
+
+  refresh () {
+    if (this.destroyed) return
+    if (this.probing) return
+    clearTimeout(this.timer)
+    this.probe()
   }
 }
 

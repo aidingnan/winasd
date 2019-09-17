@@ -61,4 +61,4 @@ class Wlan0 extends EventEmitter {
   }
 }
 
-module.exports = new Wlan0()
+module.exports = Wlan0

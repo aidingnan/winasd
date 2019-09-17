@@ -20,12 +20,11 @@ class TimeSync extends EventEmitter {
 
     this.rl = readline.createInterface({ input: this.timesync.stdout })
     this.rl.on('line', line => {
-      debug('line', line)
 
       if (line.includes('Packet count:')) {
         const count = parseInt(line.split(':')[1].trim())
 
-        debug('count', count)
+        debug('packet count', count)
 
         if (count > 0) {
           this.destroy()
@@ -38,7 +37,7 @@ class TimeSync extends EventEmitter {
   }
 
   sync () {
-    child.exec('systemctl restart systemd-timesync.service', () => {
+    child.exec('systemctl restart systemd-timesyncd.service', () => {
       if (!this.timesync) return
       setTimeout(() => {
         if (!this.timesync) return
@@ -61,7 +60,7 @@ class TimeSync extends EventEmitter {
 
   refresh () {
     if (!this.timesync) return
-    child.exec('systemctl restart systemd-timesync.service', () => {})
+    child.exec('systemctl restart systemd-timesyncd.service', () => {})
   }
 }
 
