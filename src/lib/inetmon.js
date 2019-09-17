@@ -1,4 +1,5 @@
 const EventEmitter = require('events')
+const child = require('child_process')
 const os = require('os')
 const dns = require('dns')
 
@@ -44,23 +45,34 @@ class INetMon extends EventEmitter {
   inetInfo (callback) {
     routen((err, entries) => {
       if (err) return callback(err)
+      child.exec('cat /etc/resolv.conf | grep nameserver', (err, stdout) => {
+        if (err) return callback(err)
+        const ips = os.networkInterfaces()[this.iface]
+        if (!ips) return callback(null, null)
 
-      const ips = os.networkInterfaces()[this.iface]
-      if (!ips) return callback(null, null)
+        const ipv4 = ips.find(ip => ip.family === 'IPv4')
+        if (!ipv4) return callback(null, null)
 
-      const ipv4 = ips.find(ip => ip.family === 'IPv4')
-      if (!ipv4) return callback(null, null)
+        const info = { ip: ipv4.address, netmask: ipv4.netmask }
+        const entry = entries.find(ent =>
+          ent.iface === this.iface &&
+          ent.flags === 'UG' &&
+          ent.gateway !== '0.0.0.0' &&
+          validator.isIP(ent.gateway, 4))
 
-      const info = { ip: ipv4.address, netmask: ipv4.netmask }
-      const entry = entries.find(ent =>
-        ent.iface === this.iface &&
-        ent.flags === 'UG' &&
-        ent.gateway !== '0.0.0.0' &&
-        validator.isIP(ent.gateway, 4))
+        if (entry) info.gateway = entry.gateway
 
-      if (entry) info.gateway = entry.gateway
-      info.dns = dns.getServers()
-      callback(null, info)
+        // info.dns = dns.getServers().filter(ip => ip !== '127.0.0.1' && ip !== '127.0.1.1')
+        // filter out localhost
+        info.dns = stdout.split('\n') 
+          .map(l => l.trim()) 
+          .filter(l => l.length)
+          .map(l => l.split(' ')[1])
+          .filter(ip => ip !== '127.0.0.1' && ip !== '127.0.1.1')
+
+        callback(null, info)
+      })
+
     })
   }
 
