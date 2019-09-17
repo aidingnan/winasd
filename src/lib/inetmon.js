@@ -4,6 +4,7 @@ const dns = require('dns')
 
 const validator = require('validator')
 const config = require('config')
+const debug = require('debug')('wd:inetmon')
 
 const Ping = require('./ping')
 const routen = require('./routen')
@@ -31,14 +32,8 @@ class INetMon extends EventEmitter {
 
     this.epName = config.iot.endpoint
     this.ecName = config.cloud.domain + '.aidingnan.com'
-    this.ntpName = 'ntp1.aliyun.com'
-
-    this.ep = new Ping(this.epName)
-    this.ep.on('state', state => this.handleStateChange('ep', state))
-    this.ec = new Ping(this.ecName)
-    this.ec.on('state', state => this.handleStateChange('ec', state))
-    this.ntp1 = new Ping(this.ntpName)
-    this.ntp1.on('state', state => this.handleStateChange('ntp', state))
+    this.ep = null
+    this.ec = null
 
     this.probe()
   }
@@ -85,7 +80,24 @@ class INetMon extends EventEmitter {
   }
 
   handleStateChange (prop, state) {
-    console.log(prop, state) 
+
+    debug(prop, this[prop].target, state)
+
+    if (this.gateway && this.gateway.reachable &&
+      ((this.dns1 && this.dns1.reachable) || (this.dns2 && this.dns2.reachable))) {
+      if (!this.ep) {
+        this.ep = new Ping(this.epName) 
+        this.ep.on('state', state => this.handleStateChange('ep', state))
+      } 
+
+      if (!this.ec) {
+        this.ec = new Ping(this.ecName)
+        this.ec.on('state', state => this.handleStateChange('ec', state))
+      }
+    } else {
+      this.destroyProp('ep')
+      this.destroyProp('ec')
+    }
   }
 
   probe () {
@@ -97,6 +109,8 @@ class INetMon extends EventEmitter {
         this.destroyProp('gateway')
         this.destroyProp('dns1')
         this.destroyProp('dns2')
+        this.destroyProp('ep')
+        this.destroyProp('ec')
       } else {
         const { ip, netmask, gateway, dns } = info
         this.ip = ip
