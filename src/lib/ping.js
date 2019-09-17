@@ -45,7 +45,7 @@ class Ping extends EventEmitter {
     const prev = this.reachable
     this.reachable = Math.floor(this.reachable / 2) 
     this.timer = setTimeout(() => this.ping(), 16 * 1000)
-    if (prev && !this.reachable) this.emit('down')
+    if (prev && !this.reachable) this.emit('state', false)
   }
 
   incr () {
@@ -53,7 +53,7 @@ class Ping extends EventEmitter {
     this.reachable++
     const dur = Math.pow(2, this.reachable > 10 ? 10 : this.reachable) 
     this.timer = setTimeout(() => this.ping(), dur * 1000)
-    if (!prev && this.reachable) this.emit('up')
+    if (!prev && this.reachable) this.emit('state', true)
   }
 
   destroy () {
