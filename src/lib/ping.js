@@ -2,6 +2,7 @@ const EventEmitter = require('events')
 const child = require('child_process')
 
 const validator = require('validator')
+const debug = require('debug')('wd:ping')
 
 /**
 Ping object pings target (host)
@@ -28,7 +29,7 @@ class Ping extends EventEmitter {
     this.target = target
     this.isFQDN = validator.isFQDN(target)
 
-    if (this.isFQDN) this.resolved = false
+    if (this.isFQDN) this.ip = '0.0.0.0'
     this.reachable = 0
 
     this.timer = undefined
@@ -42,18 +43,26 @@ class Ping extends EventEmitter {
     this.pinging = true
     child.exec(`ping -c 3 -q -W 8 ${this.target}`, (err, stdout) => {
       this.pinging = false
+
       if (this.destroyed) return
-      if (err) {
-        if (this.isFQDN) {
-          if (stdout.toString().includes('Name or service not known')) {
-            this.resolved = false
-          } else {
-            this.resolved = true
-          }
+      if (this.isFQDN) {
+        const first = stdout.toString().split('\n')[0]
+
+        debug('first', first)
+
+        if (first.includes('Name or service not known')) {
+          this.ip = '255.255.255.255'
+        } else if (first.startsWith('PING')) {
+          const ip = first.split(/[()]/)
+            .map(phr => phr.trim())
+            .find(phr => validator.isIP(phr, 4))
+          if (ip) this.ip = ip
         }
+      }
+
+      if (err) {
         this.decr()
       } else {
-        if (this.isFQDN) this.resolved = true
         this.incr()
       }
     })

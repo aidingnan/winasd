@@ -7,6 +7,11 @@ const debug = require('debug')('wd:timesync')
 class TimeSync extends EventEmitter {
   constructor () {
     super()
+    this.spawn()
+    this.sync()
+  }
+
+  spawn () {
     this.timesync = child.spawn('stdbuf',
       ['-o0', 'timedatectl', 'timesync-status', '--monitor'])
 
@@ -15,7 +20,9 @@ class TimeSync extends EventEmitter {
     })
 
     this.timesync.on('close', (code, signal) => {
-      console.log(`timesync exit, code ${code}, signal ${signal}`)
+      console.log(`unexpected timesync exit, code ${code}, signal ${signal}`)
+      this.rl.removeAllListeners()      
+      this.spawn()
     })
 
     this.rl = readline.createInterface({ input: this.timesync.stdout })
@@ -32,8 +39,6 @@ class TimeSync extends EventEmitter {
         }
       }
     })
-
-    this.sync()
   }
 
   sync () {

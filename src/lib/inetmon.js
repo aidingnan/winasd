@@ -94,6 +94,7 @@ class INetMon extends EventEmitter {
 
     debug(prop, this[prop].target, reachable)
 
+/**
     if (this.online && !this.isOnline()) {
       this.online = false
       this.emit('online', false)
@@ -101,6 +102,11 @@ class INetMon extends EventEmitter {
       this.online = true
       this.emit('online', true)
     }
+*/
+
+    // emit anyway to update dns reachable
+    this.online = this.isOnline()
+    this.emit('online', this.online)
   }
 
   probe () {

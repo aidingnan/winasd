@@ -25,6 +25,8 @@ class Watson extends EventEmitter {
     this.ec = null
 
     this.timesync = null
+
+    this.on('healthy', healthy => debug('healthy', healthy))
   }
 
   destroyMember (name) {
@@ -39,8 +41,6 @@ class Watson extends EventEmitter {
     if (this.destroyed) return
 
     debug('wlan0 state', state)
-
-    this.healthy = false
 
     if (state === 'connected') {
       this.inetmon = new INetMon('wlan0')
@@ -59,6 +59,12 @@ class Watson extends EventEmitter {
       this.destroyMember('ec')
       this.destroyMember('timesync')
     }
+
+    const healthy = this.healthy
+    this.healthy = false
+    if (healthy) this.emit('healthy', false)
+   
+    this.emit('update') 
   }
 
   isHealthy () {
@@ -74,12 +80,14 @@ class Watson extends EventEmitter {
 
     if (member === 'timesync') this.timesync = true
     if (!this.healthy && this.isHealthy()) {
-      this.health = true
+      this.healthy = true
       this.emit('healthy', true)
-    } else if (this.healthy && !this.isHealth()) {
-      this.health = false
+    } else if (this.healthy && !this.isHealthy()) {
+      this.healthy = false
       this.emit('healthy', false)
     }
+
+    this.emit('update')
   }
 
   destroy () {
@@ -97,6 +105,43 @@ class Watson extends EventEmitter {
     if (this.ep) this.ep.refresh()
     if (this.ec) this.ec.refresh()
     if (this.timesync && this.timesync !== true) this.timesync.refresh()
+  }
+
+  report () {
+    const r = {}
+
+    r.wlan0 = this.wlan0.state
+
+    if (this.wlan0.mac) r.mac = this.wlan0.mac
+    if (this.wlan0.connection) r.conn = this.wlan0.connection
+
+    if (this.inetmon && this.inetmon.ip && this.inetmon.netmask) {
+
+      const bits = this.inetmon.netmask.split('.')
+        .map(str => parseInt(str))
+        .reverse()
+        .reduce((sum, n, i) => sum + n * Math.pow(256, i), 0)
+        .toString(2)
+        .split('')
+        .reduce((sum, c) => sum + parseInt(c), 0)
+
+      r.ip = `${this.inetmon.ip}/${bits}`
+
+      if (this.inetmon.gateway) 
+        r.gw = `${this.inetmon.gateway.target}:${this.inetmon.gateway.reachable === 0 ? 0 : 1}`
+
+      if (this.inetmon.dns1) 
+        r.dns1 = `${this.inetmon.dns1.target}:${this.inetmon.dns1.reachable === 0 ? 0 : 1}`
+
+      if (this.inetmon.dns2)
+        r.dns2 = `${this.inetmon.dns2.target}:${this.inetmon.dns2.reachable === 0 ? 0 : 1}`
+    }
+
+    if (this.ep) r.ep = this.ep.reachable === 0 ? 0 : 1
+    if (this.ec) r.ec = this.ec.reachable === 0 ? 0 : 1
+    r.ts = this.timesync === true ? 1 : 0
+
+    return r
   }
 }
 
