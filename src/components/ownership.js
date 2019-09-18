@@ -300,7 +300,7 @@ class Ownership extends EventEmitter {
       name: this.displayName
     }
     console.log(info)
-    channel.send(`device/${device.sn}/info`, JSON.stringify(info))
+    channel.send(`device/${device.sn}/info`, info)
   }
 
   // this function is called by setDisplayName only

@@ -206,7 +206,10 @@ class Connected extends Base {
     this.setState('Connecting')
   }
 
-  send (topic, data, opts = { qos: 1 }, callback = () => {}) {
+  send (topic, data, opts, callback = () => {}) {
+    if (!opts) {
+      return this.connection.publish(topic, JSON.stringify(data))
+    }
     this.connection.publish(topic, JSON.stringify(data), opts, callback)
   }
 
