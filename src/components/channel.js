@@ -34,7 +34,7 @@ class Base extends State {
   }
 }
 
-class Pending extends State {
+class Pending extends Base {
   enter () {
     const loop = () => request
       .get(`https://${Config.cloud.domain}.aidingnan.com/s/v1/station/${Config.cloud.id}/cert`)
