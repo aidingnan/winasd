@@ -80,6 +80,19 @@ winas模块侦听Owner即可确定是否该启动/停止winas服务，同时它�
 
 # 2. 详细设计
 
+## Device
+
+Device模块是初始化时第一个需要启动的模块。它检查ecc。 
+
+Device模块正确启动后，提供：
+- sn
+- usn
+- model
+- version
+- hostname
+
+Device模块如果启动错误，按照产品定义，winasd将不能继续工作。
+
 ## 2.1. Channel
 
 Channel的责任是维护与aws iot的mqtt连接。
