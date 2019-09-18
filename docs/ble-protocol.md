@@ -262,14 +262,17 @@ Actions服务的所有请求要求客户端提供在Local Auth服务中申请的
 - `EINTERNAL`，在设备调用Linux命令搜索和连接wifi时遇到的错误，不是指命令程序返回错误，而是程序遇到了异常情况，例如命令不存在、启动失败、或者被Kill；
 - `ENOTFOUND`，搜索wifi失败，无法找到给定ssid名称的access point；
 - `EASSOCREJ`，该错误是内核的wifi驱动和cfg80211框架抛出的，指wifi连接的第一个阶段association失败；该错误时，额外提供`status`信息，status的类型为整数；
-    - status=16且bssid="00:00:00:00:00:00"时，可判定为不兼容；
-    - 其他status code参见 https://blogs.arubanetworks.com/industries/802-11-reason-codes-and-status-codes/
+    - status=16且bssid="00:00:00:00:00:00"时，可判定为不兼容；至少针对backus所使用的模块如此；
     - 初上述情况外其他status code客户端可以不解析，统一表示为与路由器wifi握手失败；但应提供显示`status`和`bssid`（不保证有）的界面，便于分析问题；
-    - 真正的密码错误对应的status待试验；但密码错误首先遇到的肯定是`EASSOCREJ`错误原因；
 - `EFAIL`，其他原因导致的`nmcli`返回失败；通常为wifi握手成功但无法获取ip地址等；
 
-
 上述错误类型中，`EINTERNAL`通常可以重试或者重启后重试成功，如果无法消除则确认为内部程序的严重bug；`EFAIL`将逐步细化，增加新的错误类型缩小`EFAIL`的范畴；客户端的向后兼容可以在code为`EWIFI`时，遇到未知的错误代码，统统当作为`EFAIL`处理。
+
+https://blogs.arubanetworks.com/industries/802-11-reason-codes-and-status-codes/
+
+https://community.cisco.com/t5/wireless-mobility-documents/802-11-association-status-802-11-deauth-reason-codes/ta-p/3148055
+
+对于密码错误的判断并不容易；而且客户端尝试解析wifi底层的reason code和status code有风险，因为虽然有wifi标准存在，每个厂商的设备固件是可选支持某些reason code和status code的；这可能也是为什么NetworkManager把很多种类型的错误都判断为密码错误的原因；仔细查看reason code和status code的定义会发现在握手阶段有非常多种可能导致握手无法通过，包括设备协议的不兼容，握手算法错误，路由器容量饱和等等；并不容易一一甄别；我们大概只要甄别出无法连接的即可，避免用户反复重试不可能成功的情况。
 
 ### 4.3.3. 配置wifi且绑定用户
 
