@@ -13,6 +13,7 @@ class Watson extends EventEmitter {
   constructor () {
     super()
     this.destroyed = false
+    this.healthy = false
 
     this.wlan0 = new Wlan0() 
     this.wlan0.on('state', state => this.handleWlan0State(state))
@@ -112,7 +113,7 @@ class Watson extends EventEmitter {
 
     r.wlan0 = this.wlan0.state
 
-    if (this.wlan0.mac) r.mac = this.wlan0.mac
+//    if (this.wlan0.mac) r.mac = this.wlan0.mac
     if (this.wlan0.connection) r.conn = this.wlan0.connection
 
     if (this.inetmon && this.inetmon.ip && this.inetmon.netmask) {

@@ -34,6 +34,16 @@ module.exports = (ssid, password, encrypted, respond) =>
       setTimeout(r(() => {
         const err = new Error('cloud not connected in 60 seconds')
         err.code = 'ETIMEOUT'
+        if (!watson.healthy) {
+          err.reason = 'EUNHEALTHY'
+          err.watson = watson.report()
+        } else if (channel.status !== 'Connected') {
+          err.reason = 'ECHANNEL'
+          err.channel = channel.status
+        } else {
+          err.reason = 'EUNKNOWN'
+        }
+
         respond(err)
         logE(err)
       }), 60 * 1000)

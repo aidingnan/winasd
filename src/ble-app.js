@@ -116,7 +116,8 @@ ble.on('message', msg => {
         connectWifiAndBind(msg.body.ssid, msg.body.pwd, msg.body.encrypted, res => {
           const packet = { seq: msg.seq }
           if (res instanceof Error) {
-            packet.error = { code: res.code, message: res.message }
+            const { message, code, reason, bssid, status, watson, channel, owner } = res
+            packet.error = { message, code, reason, bssid, status, watson, channel, owner }
           } else {
             Object.assign(packet, res)
           }
